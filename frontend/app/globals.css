@@ -874,6 +874,7 @@ input[aria-invalid='true'] {
   left: var(--space-md);
   min-height: 2.75rem;
   padding: 0 var(--space-md);
+  pointer-events: none;
 }
 
 .map-message--error {

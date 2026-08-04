@@ -48,6 +48,7 @@ Related plan:
 | M10. Current Multi-source Feed | `DONE` | Refreshed live Jinzai Canada and Vanchosun listings, added conservative duplicate reconciliation with preserved audit history, and published a verified temporary Cloudflare preview |
 | M11. Our Vancouver Completeness | `DONE` | Daum pagination, bounded 14-day backlog processing, and seen-item tracking independently revalidated |
 | M12. Mobile Map-First Header | `DONE` | Mobile map default, synchronized top-bar region selection, and compact language control verified |
+| M13. Mobile Map Loading Context | `VERIFY` | Vancouver-first map, mobile region counts, and request-safe viewport loading feedback implemented; validation in progress |
 
 ## M1. Deployment Foundation
 
@@ -179,6 +180,15 @@ without crowding the top bar.
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M12-01 | S | `DONE` | Open mobile on the map, add a synchronized region selector to the top bar, and compact the mobile language selector. | Frontend lint/build passed; Playwright at 320, 375, 414, 768, and 1280px found map-first loading, no overflow/overlay/console errors, synchronized region state, and a correctly bounded desktop detail panel; independent review passed. |
+
+## M13. Mobile Map Loading Context
+
+Goal: start mobile users in Vancouver with useful region counts and make map
+viewport loading visible without showing stale results.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M13-01 | S | `VERIFY` | Show localized counts in the mobile region selector, open on Vancouver, and display a request-safe loading status while map pins refresh. | Pending frontend lint/build, delayed and overlapping request browser checks, mobile width checks, and independent review. |
 
 ## Progress Update Rules
 

@@ -10,7 +10,7 @@ import { getCityJobCounts, JobSource, type CityJobCounts } from '@/lib/api';
 import { CITY_PRESETS } from '@/lib/city-presets';
 import {
   formatNumber,
-  getCityLabel,
+  getCompactCityLabel,
   isLocale,
   LANGUAGE_OPTIONS,
   LOCALE_TAGS,
@@ -27,14 +27,16 @@ type Filters = {
 
 type MobileView = 'list' | 'map';
 
+const VANCOUVER_PRESET = CITY_PRESETS.find((city) => city.value === 'vancouver') ?? CITY_PRESETS[0];
+
 export default function Home() {
   const [jobs, setJobs] = useState<JobSource[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobSource | null>(null);
   const [filters, setFilters] = useState<Filters>({});
-  const [mapCenter, setMapCenter] = useState<[number, number]>([-101.5, 54.2]);
-  const [mapZoom, setMapZoom] = useState(3);
+  const [mapCenter, setMapCenter] = useState<[number, number]>(VANCOUVER_PRESET.center);
+  const [mapZoom, setMapZoom] = useState(VANCOUVER_PRESET.zoom);
   const [mobileView, setMobileView] = useState<MobileView>('map');
-  const [selectedCity, setSelectedCity] = useState('canada');
+  const [selectedCity, setSelectedCity] = useState(VANCOUVER_PRESET.value);
   const [cityCounts, setCityCounts] = useState<CityJobCounts | null>(null);
   const [cityCountError, setCityCountError] = useState(false);
   const [locale, setLocale] = useState<Locale>('ko');
@@ -122,11 +124,13 @@ export default function Home() {
             value={selectedCity}
             onChange={(event) => handleCityChange(event.target.value)}
             aria-label={t(locale, 'cityQuick')}
+            aria-busy={cityCounts === null && !cityCountError}
           >
             <option value="" disabled>{t(locale, 'chooseCity')}</option>
             {CITY_PRESETS.map((city) => (
               <option key={city.value} value={city.value}>
-                {getCityLabel(city.value, locale, city.label)}
+                {getCompactCityLabel(city.value, locale, city.label)}
+                {cityCounts ? ` (${formatNumber(cityCounts[city.value] ?? 0, locale)}${t(locale, 'jobsUnit')})` : ''}
               </option>
             ))}
           </select>

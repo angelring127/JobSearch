@@ -72,7 +72,8 @@ export async function getCityJobCounts(
 }
 
 export async function getJobsByViewport(
-  params: ViewportParams
+  params: ViewportParams,
+  signal?: AbortSignal
 ): Promise<ApiResponse<JobSource[]>> {
   const queryParams = new URLSearchParams();
   queryParams.append('minLng', params.minLng.toString());
@@ -96,7 +97,7 @@ export async function getJobsByViewport(
     queryParams.append('limit', params.limit.toString());
   }
 
-  const response = await fetch(`/api/jobs/viewport?${queryParams}`);
+  const response = await fetch(`/api/jobs/viewport?${queryParams}`, { signal });
   
   if (!response.ok) {
     throw new Error(`API error: ${response.statusText}`);

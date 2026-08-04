@@ -38,15 +38,18 @@ export default function Map({
 }: MapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
+  const mapLoadedRef = useRef(false);
   const markersRef = useRef<Marker[]>([]);
   const userLocationMarkerRef = useRef<Marker | null>(null);
-  const pendingRequestsRef = useRef(0);
-  const loadingDelayRef = useRef<NodeJS.Timeout | null>(null);
+  const viewportRequestRef = useRef<AbortController | null>(null);
+  const viewportRequestIdRef = useRef(0);
+  const moveDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const initialCenterRef = useRef(initialCenter);
   const initialZoomRef = useRef(initialZoom);
   const onMapCenterChangeRef = useRef(onMapCenterChange);
+  const selectedJobRef = useRef(selectedJob);
   const [jobs, setJobs] = useState<JobSource[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [mapError, setMapError] = useState<'load' | 'init' | null>(null);
   const [locationError, setLocationError] = useState<LocationError>(null);
   const [isLocating, setIsLocating] = useState(false);
@@ -157,14 +160,13 @@ export default function Map({
   }, [locale, mapError, onJobSelect]);
 
   const loadJobsForViewport = useCallback(async () => {
-    if (!map.current || mapError) return;
+    if (!map.current || !mapLoadedRef.current || mapError) return;
 
-    pendingRequestsRef.current += 1;
-    if (pendingRequestsRef.current === 1) {
-      loadingDelayRef.current = setTimeout(() => {
-        setLoading(true);
-      }, 180);
-    }
+    viewportRequestRef.current?.abort();
+    const controller = new AbortController();
+    const requestId = ++viewportRequestIdRef.current;
+    viewportRequestRef.current = controller;
+    setLoading(true);
 
     try {
       const bounds = map.current.getBounds();
@@ -179,28 +181,25 @@ export default function Map({
         category: filters?.category,
       };
 
-      const response = await getJobsByViewport(params);
-      if (response.success && response.data) {
+      const response = await getJobsByViewport(params, controller.signal);
+      if (requestId === viewportRequestIdRef.current && response.success && response.data) {
         setJobs(response.data);
-        updateMarkers(response.data, selectedJob);
+        updateMarkers(response.data, selectedJobRef.current);
         // 親コンポーネントにジョブリストを通知
         if (onJobsUpdate) {
           onJobsUpdate(response.data);
         }
       }
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
       console.error('Failed to load jobs:', error);
     } finally {
-      pendingRequestsRef.current = Math.max(0, pendingRequestsRef.current - 1);
-      if (pendingRequestsRef.current === 0) {
-        if (loadingDelayRef.current) {
-          clearTimeout(loadingDelayRef.current);
-          loadingDelayRef.current = null;
-        }
+      if (requestId === viewportRequestIdRef.current) {
+        viewportRequestRef.current = null;
         setLoading(false);
       }
     }
-  }, [mapError, updateMarkers, filters, selectedJob, onJobsUpdate]);
+  }, [mapError, updateMarkers, filters, onJobsUpdate]);
 
   const loadJobsForViewportRef = useRef(loadJobsForViewport);
 
@@ -208,6 +207,10 @@ export default function Map({
     loadJobsForViewportRef.current = loadJobsForViewport;
     onMapCenterChangeRef.current = onMapCenterChange;
   }, [loadJobsForViewport, onMapCenterChange]);
+
+  useEffect(() => {
+    selectedJobRef.current = selectedJob;
+  }, [selectedJob]);
 
   // 地図初期化
   useEffect(() => {
@@ -250,17 +253,28 @@ export default function Map({
       // 지도 에러 핸들러
       mapInstance.on('error', (e) => {
         console.error('Map error:', e);
+        viewportRequestIdRef.current += 1;
+        viewportRequestRef.current?.abort();
+        viewportRequestRef.current = null;
+        setLoading(false);
         setMapError('load');
       });
 
       // 지도 로드 완료 후 이벤트 핸들러 등록
       mapInstance.on('load', () => {
         console.log('Map loaded successfully');
-        // 지도 이동/줌 이벤트 핸들러 (디바운스)
-        let debounceTimer: NodeJS.Timeout;
+        mapLoadedRef.current = true;
+        const handleMapMoveStart = () => {
+          viewportRequestIdRef.current += 1;
+          viewportRequestRef.current?.abort();
+          viewportRequestRef.current = null;
+          setLoading(true);
+        };
+
+        // 지도 이동 완료 후 현재 범위의 공고를 다시 불러온다.
         const handleMapMove = () => {
-          clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
+          if (moveDebounceRef.current) clearTimeout(moveDebounceRef.current);
+          moveDebounceRef.current = setTimeout(() => {
             if (map.current) {
               loadJobsForViewportRef.current();
               // 地図中心変更を親に通知
@@ -269,27 +283,36 @@ export default function Map({
                 onMapCenterChangeRef.current([center.lng, center.lat], map.current.getZoom());
               }
             }
-          }, 400);
+          }, 250);
         };
 
+        mapInstance!.on('movestart', handleMapMoveStart);
         mapInstance!.on('moveend', handleMapMove);
-        mapInstance!.on('zoomend', handleMapMove);
 
         // 초기 로드
         loadJobsForViewportRef.current();
       });
     } catch (error) {
       console.error('Failed to initialize map', error);
+      setLoading(false);
       setMapError('init');
       return;
     }
 
     return () => {
+      viewportRequestIdRef.current += 1;
+      viewportRequestRef.current?.abort();
+      viewportRequestRef.current = null;
+      if (moveDebounceRef.current) {
+        clearTimeout(moveDebounceRef.current);
+        moveDebounceRef.current = null;
+      }
       userLocationMarkerRef.current?.remove();
       userLocationMarkerRef.current = null;
       if (mapInstance) {
         mapInstance.remove();
       }
+      mapLoadedRef.current = false;
       map.current = null;
     };
   }, []); // 初期化は一度だけ
@@ -307,18 +330,12 @@ export default function Map({
     return () => window.cancelAnimationFrame(resizeFrame);
   }, [isActive]);
 
-  useEffect(() => () => {
-    if (loadingDelayRef.current) {
-      clearTimeout(loadingDelayRef.current);
-    }
-  }, []);
-
   // フィルタ変更時にジョブを再読み込み
   useEffect(() => {
     if (map.current && !mapError) {
-      loadJobsForViewport();
+      loadJobsForViewportRef.current();
     }
-  }, [filters, loadJobsForViewport, mapError]);
+  }, [filters, mapError]);
 
   // ジョブまたは選択状態が変わったらマーカーだけ更新
   useEffect(() => {
@@ -369,7 +386,7 @@ export default function Map({
   }, [initialCenter, initialZoom, mapError]);
 
   return (
-    <div className="map-shell">
+    <div className="map-shell" aria-busy={loading}>
       <div ref={mapContainer} className="map-canvas" />
       <div className="map-location-control">
         <button
@@ -401,7 +418,7 @@ export default function Map({
         </div>
       )}
       {loading && (
-        <div className="map-message map-message--loading" role="status">
+        <div className="map-message map-message--loading" role="status" aria-live="polite">
           <span className="spinner spinner--accent" aria-hidden="true" />
           <span>{t(locale, 'mapLoading')}</span>
         </div>

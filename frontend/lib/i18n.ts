@@ -195,6 +195,13 @@ const CITY_LABELS: Record<Locale, Record<string, string>> = {
   zh: { canada: '加拿大全境', vancouver: '温哥华 · 不列颠哥伦比亚省', victoria: '维多利亚 · 不列颠哥伦比亚省', calgary: '卡尔加里 · 艾伯塔省', edmonton: '埃德蒙顿 · 艾伯塔省', winnipeg: '温尼伯 · 曼尼托巴省', toronto: '多伦多 · 安大略省', ottawa: '渥太华 · 安大略省', montreal: '蒙特利尔 · 魁北克省', halifax: '哈利法克斯 · 新斯科舍省' },
 };
 
+const COMPACT_CITY_LABELS: Record<Locale, Record<string, string>> = {
+  ko: { canada: '캐나다 전체', vancouver: '밴쿠버', victoria: '빅토리아', calgary: '캘거리', edmonton: '에드먼턴', winnipeg: '위니펙', toronto: '토론토', ottawa: '오타와', montreal: '몬트리올', halifax: '핼리팩스' },
+  en: { canada: 'All Canada', vancouver: 'Vancouver', victoria: 'Victoria', calgary: 'Calgary', edmonton: 'Edmonton', winnipeg: 'Winnipeg', toronto: 'Toronto', ottawa: 'Ottawa', montreal: 'Montreal', halifax: 'Halifax' },
+  ja: { canada: 'カナダ全土', vancouver: 'バンクーバー', victoria: 'ビクトリア', calgary: 'カルガリー', edmonton: 'エドモントン', winnipeg: 'ウィニペグ', toronto: 'トロント', ottawa: 'オタワ', montreal: 'モントリオール', halifax: 'ハリファックス' },
+  zh: { canada: '加拿大全境', vancouver: '温哥华', victoria: '维多利亚', calgary: '卡尔加里', edmonton: '埃德蒙顿', winnipeg: '温尼伯', toronto: '多伦多', ottawa: '渥太华', montreal: '蒙特利尔', halifax: '哈利法克斯' },
+};
+
 export function isLocale(value: string | null): value is Locale {
   return value !== null && LOCALES.includes(value as Locale);
 }
@@ -251,4 +258,8 @@ export function getCategoryLabel(value: string | null | undefined, locale: Local
 
 export function getCityLabel(value: string, locale: Locale, fallback: string): string {
   return CITY_LABELS[locale][value] || fallback;
+}
+
+export function getCompactCityLabel(value: string, locale: Locale, fallback: string): string {
+  return COMPACT_CITY_LABELS[locale][value] || getCityLabel(value, locale, fallback);
 }
