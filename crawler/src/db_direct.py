@@ -571,6 +571,12 @@ class DirectDbClient:
                     (keep_job_id, source_id, remove_job_id, Json(history_reason)),
                 )
 
+        # A representative can already own merge history from earlier source
+        # consolidations. Move that audit trail before deleting the empty job.
+        cur.execute(
+            "UPDATE job_merge_history SET job_id = %s WHERE job_id = %s",
+            (keep_job_id, remove_job_id),
+        )
         cur.execute("DELETE FROM jobs WHERE id = %s", (remove_job_id,))
         self._refresh_source_count(cur, keep_job_id)
         return len(moved_source_ids)

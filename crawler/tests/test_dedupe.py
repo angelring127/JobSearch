@@ -1,6 +1,13 @@
 import unittest
+from unittest.mock import Mock
 
-from db_direct import AUTO_MERGE_THRESHOLD, _duplicate_score, _select_auto_merge_pairs, _title_similarity
+from db_direct import (
+    AUTO_MERGE_THRESHOLD,
+    DirectDbClient,
+    _duplicate_score,
+    _select_auto_merge_pairs,
+    _title_similarity,
+)
 
 
 def job(job_id, title, *, source_count=1, role_category="restaurant", lat=49.28, lng=-123.12):
@@ -74,6 +81,28 @@ class DuplicateScoringTests(unittest.TestCase):
         korean["title_translations"] = {"en": "Hibiki Ramen hiring servers"}
         score, _ = _duplicate_score(japanese, korean)
         self.assertGreaterEqual(score, AUTO_MERGE_THRESHOLD)
+
+    def test_merge_moves_existing_history_before_deleting_representative(self):
+        client = DirectDbClient.__new__(DirectDbClient)
+        client._refresh_source_count = Mock()
+        cursor = Mock()
+        cursor.fetchall.side_effect = [
+            [{"id": 10}, {"id": 20}],
+            [{"id": 201}],
+        ]
+
+        moved = client._merge_representative_jobs(
+            cursor,
+            keep_job_id=10,
+            remove_job_id=20,
+            reason={"score": 0.95},
+        )
+
+        commands = [" ".join(call.args[0].split()) for call in cursor.execute.call_args_list]
+        move_history = "UPDATE job_merge_history SET job_id = %s WHERE job_id = %s"
+        delete_job = "DELETE FROM jobs WHERE id = %s"
+        self.assertEqual(moved, 1)
+        self.assertLess(commands.index(move_history), commands.index(delete_job))
 
 
 if __name__ == "__main__":
