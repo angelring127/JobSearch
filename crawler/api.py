@@ -89,6 +89,17 @@ def run_enabled_sources(max_posts_per_region: int = DEFAULT_MAX_POSTS_PER_REGION
         status = "partial" if results else "failed"
 
     title_translation = backfill_missing_title_translations(db)
+    try:
+        # Reconcile after translation so same-run cross-language titles can be
+        # compared without waiting for the next scheduled crawl.
+        dedupe = {
+            "status": "ok",
+            **db.reconcile_duplicate_jobs(),
+        }
+    except Exception as exc:
+        logger.exception("Failed to reconcile duplicate jobs")
+        dedupe = {"status": "failed", "error": str(exc)[:300]}
+        status = "partial" if results else "failed"
 
     return {
         "status": status,
@@ -98,6 +109,7 @@ def run_enabled_sources(max_posts_per_region: int = DEFAULT_MAX_POSTS_PER_REGION
         "updated": sum(item.get("updated", 0) for item in results),
         "skipped": sum(item.get("skipped", 0) for item in results),
         "failed": sum(item.get("failed", 0) for item in results),
+        "dedupe": dedupe,
         "posted_date_backfill": posted_date_backfill,
         "retention": retention,
         "title_translation": title_translation,
@@ -164,9 +176,16 @@ def run_source_crawl(
                     _record_failure(summary, region, None, str(exc))
                     continue
 
-                # Process the oldest pending IDs first so advancing the high-water mark
-                # never skips items when a listing contains more than one crawl batch.
-                for msgid in sorted(set(msgids))[:max_posts_per_region]:
+                if adapter.refresh_current_listing:
+                    # Refresh-style boards can bump an older post ID back to the
+                    # top. Preserve listing order so the current public rows win.
+                    selected_msgids = list(dict.fromkeys(msgids))[:max_posts_per_region]
+                else:
+                    # Process the oldest pending IDs first so advancing the
+                    # high-water mark never skips a normal monotonic source.
+                    selected_msgids = sorted(set(msgids))[:max_posts_per_region]
+
+                for msgid in selected_msgids:
                     max_seen_msgid = max(max_seen_msgid, msgid)
                     try:
                         job_data = adapter.fetch_item(msgid, region, client)
@@ -174,11 +193,14 @@ def run_source_crawl(
                             summary["skipped"] += 1
                             continue
 
-                        location_text = job_data.get("location_text") or job_data.get("region_hint") or region["city"]
+                        has_explicit_location_policy = "location_kind" in job_data
+                        location_text = job_data.get("location_text")
+                        if not location_text and not has_explicit_location_policy:
+                            location_text = job_data.get("region_hint") or region["city"]
                         lat, lng, confidence = geocode_location(
                             location_text,
                             job_data.get("region_hint") or region["city"],
-                            allow_region_fallback=not bool(job_data.get("location_kind")),
+                            allow_region_fallback=not has_explicit_location_policy,
                         )
                         if (lat is None or lng is None) and job_data.get("location_fallback_text"):
                             lat, lng, confidence = geocode_location(

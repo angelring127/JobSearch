@@ -45,6 +45,7 @@ Related plan:
 | M6. Data Retention | `DONE` | Scheduled crawl removes records older than 14 days and reconciles representative jobs |
 | M7. Crawl Quality | `DONE` | AI-assisted quality gate with business-name location precedence and grounded neighborhood fallback |
 | M8. Public Localization | `DONE` | Four-language public UI, localized job titles, and visible posting/first-seen dates |
+| M10. Current Multi-source Feed | `VERIFY` | Refresh live Jinzai Canada and Vanchosun listings, reconcile high-confidence duplicate representatives, and publish a temporary Cloudflare preview |
 
 ## M1. Deployment Foundation
 
@@ -149,6 +150,15 @@ Goal: make each public result's origin clear and help users orient the job map a
 | --- | --- | --- | --- | --- |
 | M9-01 | S | `DONE` | Show the originating site name in public job cards and details, and add an opt-in browser current-location marker with localized permission and failure feedback. | Frontend lint/build and diff check passed; viewport/nearby APIs returned source names for 18/18 jobs; Playwright verified source labels/details, successful and denied geolocation flows, KO/ZH desktop/mobile/landscape layouts, 44px location control, reduced motion, no overflow, no error overlay, and 0 console errors. |
 | M9-02 | S | `DONE` | Display only the source site's actual publication date, parse source-specific publication metadata, and backfill missing dates without exposing crawler collection time. | Python tests/compile, frontend lint/build, and diff check passed; all 20 stored source rows were backfilled from source publication metadata, public APIs returned actual dates for 18/18 visible jobs with zero estimated dates, and desktop/mobile browser checks verified localized posted-date labels with no crawl-date fallback, overflow, overlay, or page errors. |
+
+## M10. Current Multi-source Feed
+
+Goal: keep the public feed current across active sources, collapse high-confidence duplicate representatives, and provide a temporary public preview.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M10-01 | M | `VERIFY` | Refresh live Jinzai Canada and Vanchosun listings and reconcile high-confidence cross-source or same-source duplicate representatives while preserving raw sources. | Code and live ingestion complete; validation and independent review are in progress. |
+| M10-02 | S | `VERIFY` | Expose the verified local frontend through a temporary Cloudflare Quick Tunnel. | Quick Tunnel is live; final availability check is in progress. |
 
 ## Progress Update Rules
 

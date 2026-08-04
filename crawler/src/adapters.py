@@ -23,6 +23,7 @@ PUBLIC_SOURCE_REQUEST_INTERVAL = 1.0
 class CrawlerAdapter(ABC):
     source_key: str
     display_name: str
+    refresh_current_listing = False
 
     @abstractmethod
     def get_regions(self, db_client: Any) -> List[Dict[str, Any]]:
@@ -115,6 +116,7 @@ class JinzaiCanadaAdapter(CrawlerAdapter):
 class VanchosunAdapter(CrawlerAdapter):
     source_key = "vanchosun"
     display_name = "밴조선"
+    refresh_current_listing = True
     listing_url = "https://www.vanchosun.com/market/main/frame.php?main=job"
     detail_url = "https://www.vanchosun.com/market/main/frame.php?main=job&bdId={item_id}"
 
@@ -122,7 +124,10 @@ class VanchosunAdapter(CrawlerAdapter):
         return [{"city": "Vancouver", "bbs": 1, "listing_url": self.listing_url}]
 
     def get_new_item_ids(self, region: Dict[str, Any], last_seen_id: int, client: httpx.Client) -> List[int]:
-        return extract_vanchosun_ids(_fetch_public_html(client, region["listing_url"]), last_seen_id)
+        # Vanchosun bumps older posts back to the top of the live listing, so its
+        # numeric post ID is not a reliable freshness cursor. Refresh the current
+        # top rows and let the source URL upsert keep the operation idempotent.
+        return extract_vanchosun_ids(_fetch_public_html(client, region["listing_url"]), 0)
 
     def fetch_item(self, item_id: int, region: Dict[str, Any], client: httpx.Client) -> Optional[Dict[str, Any]]:
         url = self.detail_url.format(item_id=item_id)

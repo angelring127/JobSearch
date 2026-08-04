@@ -15,6 +15,17 @@ def _unique_ids(values: List[int], last_seen_id: int) -> List[int]:
     return sorted({value for value in values if value > last_seen_id}, reverse=True)
 
 
+def _ordered_unique_ids(values: List[int], last_seen_id: int) -> List[int]:
+    result: List[int] = []
+    seen = set()
+    for value in values:
+        if value <= last_seen_id or value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
+
+
 def _posted_at(value: str, patterns: List[str]) -> Optional[str]:
     for pattern in patterns:
         match = re.search(pattern, value)
@@ -57,6 +68,12 @@ def _canonical_region(value: str, default: str) -> str:
         ("abbotsford", "Abbotsford"),
         ("캠벨리버", "Campbell River"),
         ("campbell river", "Campbell River"),
+        ("포트무디", "Port Moody"),
+        ("port moody", "Port Moody"),
+        ("스쿼미시", "Squamish"),
+        ("squamish", "Squamish"),
+        ("화이트호스", "Whitehorse"),
+        ("whitehorse", "Whitehorse"),
         ("코퀴틀람", "Coquitlam"),
         ("coquitlam", "Coquitlam"),
         ("리치몬드", "Richmond"),
@@ -102,7 +119,7 @@ def _canonical_region(value: str, default: str) -> str:
 def _location_text(content: str, region_hint: str) -> Optional[str]:
     address = extract_address(content)
     if address and re.search(r"\d", address):
-        return address
+        return _normalize_extracted_address(address)
 
     street_match = re.search(
         r"\b\d+[A-Za-z]?(?:\s+[A-Za-z0-9#.'-]+){1,8}\s+"
@@ -111,7 +128,12 @@ def _location_text(content: str, region_hint: str) -> Optional[str]:
         content,
         re.IGNORECASE,
     )
-    return _clean_text(street_match.group(0)).rstrip(" ,") if street_match else None
+    return _normalize_extracted_address(street_match.group(0)) if street_match else None
+
+
+def _normalize_extracted_address(value: str) -> str:
+    normalized = _clean_text(value).rstrip(" ,")
+    return re.sub(r",\s*BC\s+[A-Z]$", ", BC", normalized)
 
 
 def _strip_address_unit(value: str) -> str:
@@ -122,10 +144,16 @@ def _strip_address_unit(value: str) -> str:
         flags=re.IGNORECASE,
     )
     without_unit_range = re.sub(r"^\d+-(?=\d+\s)", "", without_named_unit)
-    return re.sub(
+    without_trailing_unit = re.sub(
         r",?\s+(?:Suite|Unit)\s*#?[A-Za-z0-9-]+(?=\s*,|$)",
         "",
         without_unit_range,
+        flags=re.IGNORECASE,
+    )
+    return re.sub(
+        r",?\s+(?:Suite|Unit)\s*#?[A-Za-z0-9-]+(?=\s+[A-Za-z])",
+        "",
+        without_trailing_unit,
         flags=re.IGNORECASE,
     )
 
@@ -234,7 +262,7 @@ def extract_vanchosun_ids(html: str, last_seen_id: int) -> List[int]:
         match = re.search(r"[?&]bdId=(\d+)", link.get("href", ""))
         if match:
             ids.append(int(match.group(1)))
-    return _unique_ids(ids, last_seen_id)
+    return _ordered_unique_ids(ids, last_seen_id)
 
 
 def parse_vanchosun_job(html: str, source_url: str, item_id: int) -> Optional[Dict]:
@@ -245,6 +273,8 @@ def parse_vanchosun_job(html: str, source_url: str, item_id: int) -> Optional[Di
     title = _clean_text(title_node.get_text(" ", strip=True) if title_node else "")
     content = _clean_text(content_node.get_text(" ", strip=True) if content_node else "")
     if not detail or not title or not content:
+        return None
+    if _is_obvious_non_job_ad(title):
         return None
 
     fields: Dict[str, str] = {}
@@ -269,5 +299,15 @@ def parse_vanchosun_job(html: str, source_url: str, item_id: int) -> Optional[Di
         "category": parse_category(title, "%s %s" % (fields.get("모집분야", ""), content)),
         "region_hint": region_hint,
         "location_text": location_text,
+        "location_kind": "street_address" if location_text else "none",
         "posted_at": _posted_at(detail_text, [r"등록일\s*:\s*(\d{4}-\d{2}-\d{2})"]),
     }
+
+
+def _is_obvious_non_job_ad(title: str) -> bool:
+    patterns = [
+        r"자기소개서|이력서.*(?:작성|첨삭|스토리)",
+        r"레스토랑\s*매출.*(?:높이고|비용.*낮추고|효율)",
+        r"취업\s*컨설팅|구직\s*컨설팅",
+    ]
+    return any(re.search(pattern, title, re.IGNORECASE) for pattern in patterns)

@@ -61,14 +61,29 @@ class SourceParserTests(unittest.TestCase):
         self.assertEqual(job["location_text"], "406 6th St, New Westminster, BC")
         self.assertEqual(job["posted_at"], "2026-08-01T08:30:15")
 
+    def test_jinzaicanada_normalizes_squamish_and_inline_unit(self):
+        detail = """
+        <main class="job-detail">
+          <h1 class="entry-title">Sushi kitchen assistant</h1>
+          <table>
+            <tr><th>エリア</th><td>Whistler / Squamish, BC</td></tr>
+            <tr><th>本社所在地</th><td>1200 Hunter Pl, Unit1460 Squamish, BC</td></tr>
+          </table>
+        </main>
+        """
+        job = parse_jinzaicanada_job(detail, "https://example.test/job/3379", 3379)
+        self.assertEqual(job["region_hint"], "Squamish")
+        self.assertEqual(job["location_text"], "1200 Hunter Pl Squamish, BC")
+
     def test_vanchosun_filters_job_rows_and_parses_detail(self):
         listing = """
         <table>
+          <tr class="marketListTr job_findworker"><td><a href="frame.php?main=job&amp;bdId=88989">끌어올린 구인</a></td></tr>
           <tr class="marketListTr job_findworker"><td><a href="frame.php?main=job&amp;bdId=89001">구인</a></td></tr>
           <tr class="marketListTr job_premium"><td><a href="frame.php?main=job&amp;bdId=99999">광고</a></td></tr>
         </table>
         """
-        self.assertEqual(extract_vanchosun_ids(listing, 0), [89001])
+        self.assertEqual(extract_vanchosun_ids(listing, 0), [88989, 89001])
 
         detail = """
         <div id="cf_middle">
@@ -87,6 +102,16 @@ class SourceParserTests(unittest.TestCase):
         self.assertIn("19933 88th Avenue", job["location_text"])
         self.assertEqual(job["category"], "restaurant")
         self.assertEqual(job["posted_at"], "2026-08-02T00:00:00")
+        self.assertEqual(job["location_kind"], "street_address")
+
+    def test_vanchosun_rejects_disguised_resume_service_ad(self):
+        detail = """
+        <div id="cf_middle">
+          <font><b>취업엔 자기소개서/이력서가 얼굴입니다! 완벽한 스토리를 만들어 드립니다.</b></font>
+          <div id="div_overflow">이력서와 자기소개서 작성 서비스를 제공합니다.</div>
+        </div>
+        """
+        self.assertIsNone(parse_vanchosun_job(detail, "https://example.test/?bdId=89044", 89044))
 
     def test_multilingual_categories(self):
         self.assertEqual(parse_category("주방 직원", ""), "restaurant")

@@ -1,10 +1,16 @@
 import os
 import re
+from difflib import SequenceMatcher
+from math import asin, cos, radians, sin, sqrt
 from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urlparse
 
 import psycopg2
 from psycopg2.extras import Json, RealDictCursor
+
+
+AUTO_MERGE_THRESHOLD = 0.92
+DUPLICATE_CANDIDATE_THRESHOLD = 0.7
 
 
 class DirectDbClient:
@@ -439,8 +445,8 @@ class DirectDbClient:
             self._refresh_source_count(cur, existing_job_id)
             return existing_job_id
 
-        duplicate = self._find_duplicate_job(cur, source_id, source_key, params)
-        if duplicate and duplicate["score"] >= 0.92:
+        duplicate = self._find_duplicate_job(cur, source_id, params)
+        if duplicate and duplicate["score"] >= AUTO_MERGE_THRESHOLD:
             job_id = int(duplicate["job_id"])
             cur.execute("UPDATE job_sources SET job_id = %s WHERE id = %s", (job_id, source_id))
             self._refresh_source_count(cur, job_id)
@@ -454,7 +460,7 @@ class DirectDbClient:
             return job_id
 
         job_id = self._create_representative_job(cur, source_id, params)
-        if duplicate and duplicate["score"] >= 0.7:
+        if duplicate and duplicate["score"] >= DUPLICATE_CANDIDATE_THRESHOLD:
             cur.execute(
                 """
                 INSERT INTO duplicate_candidates (source_job_id, candidate_job_id, score, reason)
@@ -468,6 +474,106 @@ class DirectDbClient:
                 (source_id, duplicate["job_id"], duplicate["score"], Json(duplicate["reason"])),
             )
         return job_id
+
+    def reconcile_duplicate_jobs(self, limit: int = 500) -> Dict[str, int]:
+        bounded_limit = max(2, min(limit, 2000))
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                      j.id::INTEGER AS id,
+                      j.title,
+                      j.title_translations,
+                      j.region_hint,
+                      j.wage_min,
+                      j.wage_max,
+                      j.lat,
+                      j.lng,
+                      j.category,
+                      j.source_count::INTEGER AS source_count,
+                      ps.source_key AS primary_source_key,
+                      ps.posted_at
+                    FROM jobs j
+                    LEFT JOIN job_sources ps ON ps.id = j.primary_source_id
+                    WHERE j.hidden = FALSE
+                      AND j.title IS NOT NULL
+                      AND j.region_hint IS NOT NULL
+                    ORDER BY j.updated_at DESC, j.id DESC
+                    LIMIT %s
+                    """,
+                    (bounded_limit,),
+                )
+                rows = [dict(row) for row in cur.fetchall()]
+                matches = _select_auto_merge_pairs(rows)
+                moved_sources = 0
+                merged_jobs = 0
+                for match in matches:
+                    moved = self._merge_representative_jobs(
+                        cur,
+                        keep_job_id=match["keep_job_id"],
+                        remove_job_id=match["remove_job_id"],
+                        reason=match["reason"],
+                    )
+                    if moved >= 0:
+                        moved_sources += moved
+                        merged_jobs += 1
+
+                return {
+                    "checked_jobs": len(rows),
+                    "candidate_pairs": len(matches),
+                    "merged_jobs": merged_jobs,
+                    "moved_sources": moved_sources,
+                }
+
+    def _merge_representative_jobs(
+        self,
+        cur: Any,
+        keep_job_id: int,
+        remove_job_id: int,
+        reason: Dict[str, Any],
+    ) -> int:
+        cur.execute(
+            "SELECT id::INTEGER AS id FROM jobs WHERE id IN (%s, %s) ORDER BY id",
+            (keep_job_id, remove_job_id),
+        )
+        if len(cur.fetchall()) != 2:
+            return -1
+
+        cur.execute(
+            "SELECT id::INTEGER AS id FROM job_sources WHERE job_id = %s ORDER BY id",
+            (remove_job_id,),
+        )
+        moved_source_ids = [int(row["id"]) for row in cur.fetchall()]
+
+        cur.execute(
+            "DELETE FROM duplicate_candidates WHERE candidate_job_id = %s",
+            (remove_job_id,),
+        )
+        if moved_source_ids:
+            history_reason = dict(reason, previous_job_id=remove_job_id)
+            cur.execute(
+                "DELETE FROM duplicate_candidates WHERE source_job_id = ANY(%s)",
+                (moved_source_ids,),
+            )
+            cur.execute(
+                "UPDATE job_sources SET job_id = %s, updated_at = NOW() WHERE id = ANY(%s)",
+                (keep_job_id, moved_source_ids),
+            )
+            for source_id in moved_source_ids:
+                cur.execute(
+                    """
+                    INSERT INTO job_merge_history (
+                      job_id, source_job_id, action, previous_job_id, reason
+                    )
+                    VALUES (%s, %s, 'auto_merge', %s, %s)
+                    """,
+                    (keep_job_id, source_id, remove_job_id, Json(history_reason)),
+                )
+
+        cur.execute("DELETE FROM jobs WHERE id = %s", (remove_job_id,))
+        self._refresh_source_count(cur, keep_job_id)
+        return len(moved_source_ids)
 
     def _create_representative_job(self, cur: Any, source_id: int, params: Dict[str, Any]) -> int:
         cur.execute(
@@ -606,7 +712,6 @@ class DirectDbClient:
         self,
         cur: Any,
         source_id: int,
-        source_key: str,
         params: Dict[str, Any],
     ) -> Optional[Dict[str, Any]]:
         if not params.get("title") or not params.get("region_hint"):
@@ -617,11 +722,15 @@ class DirectDbClient:
             SELECT
               j.id,
               j.title,
+              j.title_translations,
               j.region_hint,
               j.wage_min,
               j.wage_max,
+              j.lat,
+              j.lng,
               j.category,
-              ps.source_key AS primary_source_key
+              ps.source_key AS primary_source_key,
+              ps.posted_at
             FROM jobs j
             LEFT JOIN job_sources ps ON ps.id = j.primary_source_id
             WHERE j.hidden = FALSE
@@ -638,8 +747,6 @@ class DirectDbClient:
 
         best = None
         for row in cur.fetchall():
-            if row.get("primary_source_key") == source_key:
-                continue
             score, reason = _duplicate_score(params, row)
             if not best or score > best["score"]:
                 best = {"job_id": int(row["id"]), "score": score, "reason": reason}
@@ -651,18 +758,86 @@ def _external_id_from_url(source_url: str) -> str:
     return parsed.query or source_url
 
 
-def _tokenize(value: Optional[str]) -> Set[str]:
+_DUPLICATE_TITLE_STOPWORDS = {
+    "구인", "구합니다", "구함", "모집", "모집합니다", "채용", "직원", "스탭", "스태프",
+    "함께", "일하실", "분", "풀타임", "파트타임",
+    "hiring", "hire", "job", "jobs", "recruiting", "staff", "wanted", "fulltime", "parttime",
+    "募集", "募集中", "求人", "急募", "スタッフ", "採用",
+    "招聘", "招募", "员工", "全职", "兼职",
+}
+
+
+def _title_tokens(value: Optional[str]) -> List[str]:
     if not value:
-        return set()
-    return set(token for token in re.findall(r"[a-z0-9]+", value.lower()) if len(token) > 1)
+        return []
+    normalized = value.casefold().replace("＆", "&")
+    tokens = re.findall(r"[^\W_]+", normalized, flags=re.UNICODE)
+    return [token for token in tokens if len(token) > 1 and token not in _DUPLICATE_TITLE_STOPWORDS]
+
+
+def _tokenize(value: Optional[str]) -> Set[str]:
+    return set(_title_tokens(value))
 
 
 def _title_similarity(left: Optional[str], right: Optional[str]) -> float:
-    left_tokens = _tokenize(left)
-    right_tokens = _tokenize(right)
-    if not left_tokens or not right_tokens:
+    left_sequence = _title_tokens(left)
+    right_sequence = _title_tokens(right)
+    if not left_sequence or not right_sequence:
         return 0.0
-    return len(left_tokens & right_tokens) / len(left_tokens | right_tokens)
+    left_tokens = set(left_sequence)
+    right_tokens = set(right_sequence)
+    left_normalized = " ".join(left_sequence)
+    right_normalized = " ".join(right_sequence)
+    if left_normalized == right_normalized:
+        return 1.0
+    jaccard = len(left_tokens & right_tokens) / len(left_tokens | right_tokens)
+    sequence = SequenceMatcher(None, left_normalized, right_normalized).ratio()
+    return max(jaccard, sequence)
+
+
+def _title_candidates(record: Dict[str, Any]) -> List[str]:
+    candidates = [str(record.get("title") or "").strip()]
+    translations = record.get("title_translations")
+    if isinstance(translations, dict):
+        candidates.extend(str(value).strip() for value in translations.values())
+    return list(dict.fromkeys(value for value in candidates if value))
+
+
+def _best_title_similarity(source: Dict[str, Any], candidate: Dict[str, Any]) -> tuple:
+    best_similarity = 0.0
+    best_token_count = 0
+    for left in _title_candidates(source):
+        for right in _title_candidates(candidate):
+            similarity = _title_similarity(left, right)
+            token_count = min(len(_tokenize(left)), len(_tokenize(right)))
+            if similarity > best_similarity or (
+                similarity == best_similarity and token_count > best_token_count
+            ):
+                best_similarity = similarity
+                best_token_count = token_count
+    return best_similarity, best_token_count
+
+
+def _location_similarity(source: Dict[str, Any], candidate: Dict[str, Any]) -> float:
+    coordinates = [source.get("lat"), source.get("lng"), candidate.get("lat"), candidate.get("lng")]
+    if all(value is not None for value in coordinates):
+        source_lat, source_lng, candidate_lat, candidate_lng = [float(value) for value in coordinates]
+        radius_km = 6371.0
+        lat_delta = radians(candidate_lat - source_lat)
+        lng_delta = radians(candidate_lng - source_lng)
+        haversine = (
+            sin(lat_delta / 2) ** 2
+            + cos(radians(source_lat)) * cos(radians(candidate_lat)) * sin(lng_delta / 2) ** 2
+        )
+        distance_km = 2 * radius_km * asin(sqrt(haversine))
+        if distance_km <= 0.1:
+            return 1.0
+        if distance_km <= 0.3:
+            return 0.9
+        if distance_km <= 1.0:
+            return 0.65
+        return 0.0
+    return 0.4
 
 
 def _wage_similarity(
@@ -683,7 +858,8 @@ def _wage_similarity(
 
 
 def _duplicate_score(source: Dict[str, Any], candidate: Dict[str, Any]) -> tuple:
-    title = _title_similarity(source.get("title"), candidate.get("title"))
+    title, title_token_count = _best_title_similarity(source, candidate)
+    location = _location_similarity(source, candidate)
     wage = _wage_similarity(
         source.get("wage_min"),
         source.get("wage_max"),
@@ -691,11 +867,53 @@ def _duplicate_score(source: Dict[str, Any], candidate: Dict[str, Any]) -> tuple
         candidate.get("wage_max"),
     )
     category = 1.0 if source.get("category") and source.get("category") == candidate.get("category") else 0.5
-    region = 1.0
-    score = round((title * 0.55) + (region * 0.2) + (wage * 0.15) + (category * 0.1), 4)
+    score = (title * 0.65) + (location * 0.2) + (wage * 0.1) + (category * 0.05)
+    if title >= 0.98 and title_token_count >= 3 and location >= 0.65:
+        score = max(score, 0.93)
+    if title_token_count < 3:
+        score = min(score, 0.89)
+    score = round(score, 4)
     return score, {
         "title_similarity": round(title, 4),
+        "title_token_count": title_token_count,
         "region_match": True,
+        "location_similarity": location,
         "wage_similarity": wage,
         "category_match": source.get("category") == candidate.get("category"),
     }
+
+
+def _select_auto_merge_pairs(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    matches: List[Dict[str, Any]] = []
+    removed_job_ids = set()
+    for index, left in enumerate(rows):
+        left_id = int(left["id"])
+        if left_id in removed_job_ids:
+            continue
+        for right in rows[index + 1 :]:
+            right_id = int(right["id"])
+            if right_id in removed_job_ids:
+                continue
+            if str(left.get("region_hint") or "").casefold() != str(right.get("region_hint") or "").casefold():
+                continue
+            score, reason = _duplicate_score(left, right)
+            if score < AUTO_MERGE_THRESHOLD:
+                continue
+
+            keep, remove = sorted(
+                (left, right),
+                key=lambda row: (-int(row.get("source_count") or 1), int(row["id"])),
+            )
+            removed_job_ids.add(int(remove["id"]))
+            reason = dict(reason, score=score, reconciliation=True)
+            matches.append(
+                {
+                    "keep_job_id": int(keep["id"]),
+                    "remove_job_id": int(remove["id"]),
+                    "score": score,
+                    "reason": reason,
+                }
+            )
+            if int(remove["id"]) == left_id:
+                break
+    return matches
