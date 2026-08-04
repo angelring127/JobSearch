@@ -1,36 +1,57 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import FilterBar from '@/components/FilterBar';
+import JobDetail from '@/components/JobDetail';
+import JobList from '@/components/JobList';
 import Map from '@/components/Map';
 import SearchBar from '@/components/SearchBar';
-import FilterBar from '@/components/FilterBar';
-import JobList from '@/components/JobList';
-import JobDetail from '@/components/JobDetail';
 import { JobSource } from '@/lib/api';
+import {
+  formatNumber,
+  isLocale,
+  LANGUAGE_OPTIONS,
+  LOCALE_TAGS,
+  t,
+  type Locale,
+} from '@/lib/i18n';
+
+type Filters = {
+  wageMin?: number;
+  wageMax?: number;
+  category?: string;
+  radius?: number;
+};
+
+type MobileView = 'list' | 'map';
 
 export default function Home() {
   const [jobs, setJobs] = useState<JobSource[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobSource | null>(null);
-  const [filters, setFilters] = useState({
-    wageMin: undefined as number | undefined,
-    wageMax: undefined as number | undefined,
-    category: undefined as string | undefined,
-    radius: undefined as number | undefined,
-  });
-  const [mapCenter, setMapCenter] = useState<[number, number]>([-123.1207, 49.2827]);
-  const [mapZoom, setMapZoom] = useState(12);
+  const [filters, setFilters] = useState<Filters>({});
+  const [mapCenter, setMapCenter] = useState<[number, number]>([-101.5, 54.2]);
+  const [mapZoom, setMapZoom] = useState(3);
+  const [mobileView, setMobileView] = useState<MobileView>('list');
+  const [locale, setLocale] = useState<Locale>('ko');
 
-  // ジョブリスト更新ハンドラ
+  useEffect(() => {
+    const savedLocale = window.localStorage.getItem('jobmap-locale');
+    if (isLocale(savedLocale)) setLocale(savedLocale);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = LOCALE_TAGS[locale];
+    document.title = t(locale, 'metaTitle');
+  }, [locale]);
+
   const handleJobsUpdate = useCallback((newJobs: JobSource[]) => {
     setJobs(newJobs);
   }, []);
 
-  // フィルタ更新ハンドラ
-  const handleFilterChange = useCallback((newFilters: typeof filters) => {
+  const handleFilterChange = useCallback((newFilters: Filters) => {
     setFilters(newFilters);
   }, []);
 
-  // 地図中心移動ハンドラ
   const handleMapCenterChange = useCallback((center: [number, number], zoom?: number) => {
     setMapCenter(center);
     if (zoom !== undefined) {
@@ -38,47 +59,112 @@ export default function Home() {
     }
   }, []);
 
+  const handleLocationSelect = useCallback((center: [number, number], zoom?: number) => {
+    handleMapCenterChange(center, zoom);
+    setMobileView('map');
+  }, [handleMapCenterChange]);
+
+  const handleJobSelect = useCallback((job: JobSource) => {
+    setSelectedJob(job);
+    setMobileView('map');
+  }, []);
+
+  const handleJobDetailClose = useCallback(() => {
+    setSelectedJob(null);
+  }, []);
+
+  const handleLocaleChange = useCallback((nextLocale: Locale) => {
+    setLocale(nextLocale);
+    window.localStorage.setItem('jobmap-locale', nextLocale);
+  }, []);
+
   return (
-    <main className="flex flex-col h-screen">
-      <header className="bg-white shadow-sm p-4 flex-shrink-0">
-        <h1 className="text-2xl font-bold">JobMap</h1>
-        <p className="text-sm text-gray-600">캐나다 구인정보 지도 기반 탐색</p>
+    <main className="job-app">
+      <header className="app-bar">
+        <div className="wordmark" aria-label={t(locale, 'home')}>
+          <span className="wordmark__mark" aria-hidden="true">JM</span>
+          <span className="wordmark__text">JobMap</span>
+        </div>
+        <div className="app-bar__actions">
+          <div className="app-bar__status" aria-live="polite">
+            <span className="status-dot" aria-hidden="true" />
+            {t(locale, 'allCanada')} · {formatNumber(jobs.length, locale)}{t(locale, 'postings')}
+          </div>
+          <label className="language-select">
+            <span className="sr-only">{t(locale, 'language')}</span>
+            <select
+              value={locale}
+              onChange={(event) => handleLocaleChange(event.target.value as Locale)}
+              aria-label={t(locale, 'language')}
+            >
+              {LANGUAGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
       </header>
-      <div className="flex-1 flex min-h-0">
-        {/* 左側パネル: 検索バー + フィルタ + リスト */}
-        <div className="w-96 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
-          <div className="p-4 border-b border-gray-200">
-            <SearchBar onLocationSelect={handleMapCenterChange} />
+
+      <div className={`workspace workspace--${mobileView}`}>
+        <aside className="discovery-panel" aria-label={t(locale, 'discoveryPanel')}>
+          <div className="discovery-panel__intro">
+            <p className="eyebrow">{t(locale, 'heroEyebrow')}</p>
+            <h1>{t(locale, 'heroTitle')}</h1>
+            <p>{t(locale, 'heroDescription')}</p>
           </div>
-          <div className="p-4 border-b border-gray-200">
-            <FilterBar filters={filters} onFilterChange={handleFilterChange} />
+
+          <div className="search-section">
+            <SearchBar onLocationSelect={handleLocationSelect} locale={locale} />
           </div>
-          <div className="flex-1 overflow-hidden">
-            <JobList 
-              jobs={jobs} 
+
+          <FilterBar filters={filters} onFilterChange={handleFilterChange} locale={locale} />
+
+          <div className="job-list-region">
+            <JobList
+              jobs={jobs}
               selectedJob={selectedJob}
-              onJobSelect={setSelectedJob}
+              onJobSelect={handleJobSelect}
+              locale={locale}
             />
           </div>
-        </div>
-        
-        {/* 右側: 地図エリア */}
-        <div className="flex-1 relative min-h-0">
-          <Map 
+        </aside>
+
+        <section className="map-panel" aria-label={t(locale, 'mapPanel')}>
+          <Map
             initialCenter={mapCenter}
             initialZoom={mapZoom}
             filters={filters}
             selectedJob={selectedJob}
             onJobsUpdate={handleJobsUpdate}
-            onJobSelect={setSelectedJob}
+            onJobSelect={handleJobSelect}
             onMapCenterChange={handleMapCenterChange}
+            isActive={mobileView === 'map'}
+            locale={locale}
           />
-        </div>
+        </section>
       </div>
-      
-      {/* 詳細ポップアップ */}
+
+      <nav className="mobile-view-switcher" aria-label={t(locale, 'viewMode')}>
+        <button
+          type="button"
+          className="mobile-view-switcher__button"
+          aria-pressed={mobileView === 'list'}
+          onClick={() => setMobileView('list')}
+        >
+          {t(locale, 'list')}
+        </button>
+        <button
+          type="button"
+          className="mobile-view-switcher__button"
+          aria-pressed={mobileView === 'map'}
+          onClick={() => setMobileView('map')}
+        >
+          {t(locale, 'map')}
+        </button>
+      </nav>
+
       {selectedJob && (
-        <JobDetail job={selectedJob} onClose={() => setSelectedJob(null)} />
+        <JobDetail job={selectedJob} onClose={handleJobDetailClose} locale={locale} />
       )}
     </main>
   );

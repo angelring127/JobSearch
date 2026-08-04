@@ -1,0 +1,18 @@
+{
+  "experimentalServices": {
+    "web": {
+      "entrypoint": "frontend",
+      "routePrefix": "/"
+    },
+    "crawler": {
+      "entrypoint": "crawler/api.py",
+      "routePrefix": "/crawler"
+    }
+  },
+  "crons": [
+    {
+      "path": "/crawler/cron/crawl",
+      "schedule": "0 16 * * *"
+    }
+  ]
+}

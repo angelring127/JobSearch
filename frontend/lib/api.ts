@@ -1,19 +1,21 @@
-// API client for JobMap backend
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// API client for JobMap Next.js route handlers
 
 export interface JobSource {
   id: number;
   msgid: number;
   title: string | null;
+  title_translations?: Partial<Record<'ko' | 'en' | 'ja' | 'zh', string>> | null;
   wage_min: number | null;
   wage_max: number | null;
   lat: number | null;
   lng: number | null;
   source_url: string;
+  source_name?: string;
   confidence: number;
   category: string | null;
   region_hint: string | null;
   posted_at: string | null;
+  posted_at_is_estimated?: boolean;
   distance_km?: number;
 }
 
@@ -55,6 +57,20 @@ export interface NearbyParams {
   limit?: number;
 }
 
+export type CityJobCounts = Record<string, number>;
+
+export async function getCityJobCounts(
+  signal?: AbortSignal
+): Promise<ApiResponse<CityJobCounts>> {
+  const response = await fetch('/api/jobs/city-counts', { signal });
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 export async function getJobsByViewport(
   params: ViewportParams
 ): Promise<ApiResponse<JobSource[]>> {
@@ -80,7 +96,7 @@ export async function getJobsByViewport(
     queryParams.append('limit', params.limit.toString());
   }
 
-  const response = await fetch(`${API_URL}/api/jobs/viewport?${queryParams}`);
+  const response = await fetch(`/api/jobs/viewport?${queryParams}`);
   
   if (!response.ok) {
     throw new Error(`API error: ${response.statusText}`);
@@ -110,7 +126,7 @@ export async function getJobsByNearby(
     queryParams.append('limit', params.limit.toString());
   }
 
-  const response = await fetch(`${API_URL}/api/jobs/nearby?${queryParams}`);
+  const response = await fetch(`/api/jobs/nearby?${queryParams}`);
   
   if (!response.ok) {
     throw new Error(`API error: ${response.statusText}`);
@@ -118,5 +134,3 @@ export async function getJobsByNearby(
   
   return response.json();
 }
-
-

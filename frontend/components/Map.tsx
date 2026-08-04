@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { getJobsByViewport, JobSource, ViewportParams } from '@/lib/api';
+import { getJobTitle, t, type Locale } from '@/lib/i18n';
+
+type LocationError = 'permission' | 'unavailable' | null;
 
 interface MapProps {
   initialCenter?: [number, number];
@@ -18,65 +21,151 @@ interface MapProps {
   onJobsUpdate?: (jobs: JobSource[]) => void;
   onJobSelect?: (job: JobSource) => void;
   onMapCenterChange?: (center: [number, number], zoom?: number) => void;
+  isActive?: boolean;
+  locale: Locale;
 }
 
 export default function Map({ 
-  initialCenter = [-123.1207, 49.2827], 
-  initialZoom = 12,
+  initialCenter = [-101.5, 54.2],
+  initialZoom = 3,
   filters,
   selectedJob,
   onJobsUpdate,
   onJobSelect,
   onMapCenterChange,
+  isActive = true,
+  locale,
 }: MapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<Marker[]>([]);
+  const userLocationMarkerRef = useRef<Marker | null>(null);
+  const pendingRequestsRef = useRef(0);
+  const loadingDelayRef = useRef<NodeJS.Timeout | null>(null);
+  const initialCenterRef = useRef(initialCenter);
+  const initialZoomRef = useRef(initialZoom);
+  const onMapCenterChangeRef = useRef(onMapCenterChange);
   const [jobs, setJobs] = useState<JobSource[]>([]);
   const [loading, setLoading] = useState(false);
-  const [mapError, setMapError] = useState<string | null>(null);
+  const [mapError, setMapError] = useState<'load' | 'init' | null>(null);
+  const [locationError, setLocationError] = useState<LocationError>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [hasUserLocation, setHasUserLocation] = useState(false);
 
-  // マーカー更新関数
+  const showMyLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationError('unavailable');
+      return;
+    }
+
+    setIsLocating(true);
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const currentMap = map.current;
+        if (!currentMap) {
+          setIsLocating(false);
+          setLocationError('unavailable');
+          return;
+        }
+
+        const position: [number, number] = [coords.longitude, coords.latitude];
+        if (userLocationMarkerRef.current) {
+          userLocationMarkerRef.current.setLngLat(position);
+        } else {
+          const markerElement = document.createElement('div');
+          markerElement.className = 'user-location-marker';
+          markerElement.setAttribute('role', 'img');
+          markerElement.setAttribute('aria-label', t(locale, 'myLocationMarker'));
+          markerElement.title = t(locale, 'myLocationMarker');
+          userLocationMarkerRef.current = new Marker({ element: markerElement })
+            .setLngLat(position)
+            .addTo(currentMap);
+        }
+
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        currentMap.flyTo({
+          center: position,
+          zoom: Math.max(currentMap.getZoom(), 13),
+          duration: reduceMotion ? 0 : 800,
+        });
+        setHasUserLocation(true);
+        setIsLocating(false);
+      },
+      (error) => {
+        setIsLocating(false);
+        setLocationError(error.code === error.PERMISSION_DENIED ? 'permission' : 'unavailable');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }, [locale]);
+
   const updateMarkers = useCallback((jobList: JobSource[], selected?: JobSource | null) => {
     if (!map.current || mapError) return;
 
-    // 既存のマーカーを削除
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
-    
-    jobList.forEach((job) => {
-      if (job.lat && job.lng) {
-        const el = document.createElement('div');
-        el.className = 'job-marker';
-        el.style.width = selected?.id === job.id ? '28px' : '20px';
-        el.style.height = selected?.id === job.id ? '28px' : '20px';
-        el.style.borderRadius = '50%';
-        el.style.backgroundColor = selected?.id === job.id ? '#ef4444' : '#3b82f6';
-        el.style.border = selected?.id === job.id ? '3px solid white' : '2px solid white';
-        el.style.cursor = 'pointer';
-        el.style.transition = 'all 0.2s ease';
-        el.style.boxShadow = selected?.id === job.id ? '0 0 0 4px rgba(239, 68, 68, 0.3)' : 'none';
 
-        const marker = new Marker(el)
-          .setLngLat([job.lng, job.lat])
+    const groupedJobs = new globalThis.Map<string, JobSource[]>();
+    jobList.forEach((job) => {
+      if (job.lat !== null && job.lat !== undefined && job.lng !== null && job.lng !== undefined) {
+        const key = `${job.lng.toFixed(5)},${job.lat.toFixed(5)}`;
+        groupedJobs.set(key, [...(groupedJobs.get(key) || []), job]);
+      }
+    });
+
+    groupedJobs.forEach((group) => {
+      const anchorJob = group[0];
+      const selectedInGroup = selected ? group.some((job) => job.id === selected.id) : false;
+      if (anchorJob.lat !== null && anchorJob.lat !== undefined && anchorJob.lng !== null && anchorJob.lng !== undefined) {
+        const el = document.createElement('div');
+        el.className = [
+          'job-marker',
+          group.length > 1 ? 'job-marker--cluster' : '',
+          selectedInGroup ? 'job-marker--selected' : '',
+        ].filter(Boolean).join(' ');
+        el.title = group.length > 1
+          ? `${t(locale, 'jobsAtLocation')} ${group.length}`
+          : getJobTitle(anchorJob, locale);
+        el.setAttribute('role', 'button');
+        el.setAttribute('tabindex', '0');
+        el.setAttribute('aria-label', el.title);
+        if (group.length > 1) {
+          el.textContent = String(group.length);
+        }
+
+        const marker = new Marker({ element: el })
+          .setLngLat([anchorJob.lng, anchorJob.lat])
           .addTo(map.current!);
 
-        el.addEventListener('click', () => {
-          // マーカークリック時に選択状態を設定
+        const selectMarker = () => {
           if (onJobSelect) {
-            onJobSelect(job);
+            onJobSelect(selectedInGroup && selected ? selected : anchorJob);
+          }
+        };
+        el.addEventListener('click', selectMarker);
+        el.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            selectMarker();
           }
         });
 
         markersRef.current.push(marker);
       }
     });
-  }, [mapError, onJobSelect]);
+  }, [locale, mapError, onJobSelect]);
 
   const loadJobsForViewport = useCallback(async () => {
     if (!map.current || mapError) return;
 
-    setLoading(true);
+    pendingRequestsRef.current += 1;
+    if (pendingRequestsRef.current === 1) {
+      loadingDelayRef.current = setTimeout(() => {
+        setLoading(true);
+      }, 180);
+    }
+
     try {
       const bounds = map.current.getBounds();
       const params: ViewportParams = {
@@ -102,9 +191,23 @@ export default function Map({
     } catch (error) {
       console.error('Failed to load jobs:', error);
     } finally {
-      setLoading(false);
+      pendingRequestsRef.current = Math.max(0, pendingRequestsRef.current - 1);
+      if (pendingRequestsRef.current === 0) {
+        if (loadingDelayRef.current) {
+          clearTimeout(loadingDelayRef.current);
+          loadingDelayRef.current = null;
+        }
+        setLoading(false);
+      }
     }
   }, [mapError, updateMarkers, filters, selectedJob, onJobsUpdate]);
+
+  const loadJobsForViewportRef = useRef(loadJobsForViewport);
+
+  useEffect(() => {
+    loadJobsForViewportRef.current = loadJobsForViewport;
+    onMapCenterChangeRef.current = onMapCenterChange;
+  }, [loadJobsForViewport, onMapCenterChange]);
 
   // 地図初期化
   useEffect(() => {
@@ -138,8 +241,8 @@ export default function Map({
             }
           ]
         },
-        center: initialCenter,
-        zoom: initialZoom
+        center: initialCenterRef.current,
+        zoom: initialZoomRef.current
       });
 
       map.current = mapInstance;
@@ -147,7 +250,7 @@ export default function Map({
       // 지도 에러 핸들러
       mapInstance.on('error', (e) => {
         console.error('Map error:', e);
-        setMapError('지도를 로드하는 중 오류가 발생했습니다.');
+        setMapError('load');
       });
 
       // 지도 로드 완료 후 이벤트 핸들러 등록
@@ -159,11 +262,11 @@ export default function Map({
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
             if (map.current) {
-              loadJobsForViewport();
+              loadJobsForViewportRef.current();
               // 地図中心変更を親に通知
-              if (onMapCenterChange) {
+              if (onMapCenterChangeRef.current) {
                 const center = map.current.getCenter();
-                onMapCenterChange([center.lng, center.lat], map.current.getZoom());
+                onMapCenterChangeRef.current([center.lng, center.lat], map.current.getZoom());
               }
             }
           }, 400);
@@ -173,21 +276,42 @@ export default function Map({
         mapInstance!.on('zoomend', handleMapMove);
 
         // 초기 로드
-        loadJobsForViewport();
+        loadJobsForViewportRef.current();
       });
     } catch (error) {
       console.error('Failed to initialize map', error);
-      setMapError('지도를 초기화하는 중 문제가 발생했습니다. 브라우저가 WebGL을 지원하는지 확인해 주세요.');
+      setMapError('init');
       return;
     }
 
     return () => {
+      userLocationMarkerRef.current?.remove();
+      userLocationMarkerRef.current = null;
       if (mapInstance) {
         mapInstance.remove();
       }
       map.current = null;
     };
   }, []); // 初期化は一度だけ
+
+  useEffect(() => {
+    const markerElement = userLocationMarkerRef.current?.getElement();
+    if (!markerElement) return;
+    markerElement.setAttribute('aria-label', t(locale, 'myLocationMarker'));
+    markerElement.title = t(locale, 'myLocationMarker');
+  }, [locale]);
+
+  useEffect(() => {
+    if (!isActive || !map.current) return;
+    const resizeFrame = window.requestAnimationFrame(() => map.current?.resize());
+    return () => window.cancelAnimationFrame(resizeFrame);
+  }, [isActive]);
+
+  useEffect(() => () => {
+    if (loadingDelayRef.current) {
+      clearTimeout(loadingDelayRef.current);
+    }
+  }, []);
 
   // フィルタ変更時にジョブを再読み込み
   useEffect(() => {
@@ -196,20 +320,33 @@ export default function Map({
     }
   }, [filters, loadJobsForViewport, mapError]);
 
-  // 選択されたジョブが変更されたらマーカーを更新
+  // ジョブまたは選択状態が変わったらマーカーだけ更新
   useEffect(() => {
     if (map.current && !mapError) {
       updateMarkers(jobs, selectedJob);
-      // 選択されたジョブの位置に地図を移動
-      if (selectedJob && selectedJob.lat && selectedJob.lng) {
-        map.current.flyTo({
-          center: [selectedJob.lng, selectedJob.lat],
-          zoom: Math.max(map.current.getZoom(), 14),
-          duration: 1000,
-        });
-      }
     }
   }, [selectedJob, jobs, updateMarkers, mapError]);
+
+  const selectedJobId = selectedJob?.id ?? null;
+  const selectedJobLat = selectedJob?.lat ?? null;
+  const selectedJobLng = selectedJob?.lng ?? null;
+
+  // 選択されたジョブ自体が変わった時だけ、その位置に地図を移動
+  useEffect(() => {
+    if (
+      map.current
+      && !mapError
+      && selectedJobId !== null
+      && selectedJobLat !== null
+      && selectedJobLng !== null
+    ) {
+      map.current.flyTo({
+        center: [selectedJobLng, selectedJobLat],
+        zoom: Math.max(map.current.getZoom(), 14),
+        duration: 1000,
+      });
+    }
+  }, [selectedJobId, selectedJobLat, selectedJobLng, mapError]);
 
   // 地図中心変更（外部から）
   useEffect(() => {
@@ -232,23 +369,43 @@ export default function Map({
   }, [initialCenter, initialZoom, mapError]);
 
   return (
-    <div className="relative w-full h-full">
-      <div ref={mapContainer} className="w-full h-full bg-gray-100" />
+    <div className="map-shell">
+      <div ref={mapContainer} className="map-canvas" />
+      <div className="map-location-control">
+        <button
+          type="button"
+          className="map-location-button"
+          onClick={showMyLocation}
+          disabled={isLocating || Boolean(mapError)}
+          aria-pressed={hasUserLocation}
+        >
+          {isLocating ? (
+            <span className="spinner" aria-hidden="true" />
+          ) : (
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+            </svg>
+          )}
+          <span>{t(locale, isLocating ? 'locating' : 'showMyLocation')}</span>
+        </button>
+        {locationError && (
+          <p className="map-location-error" role="alert">
+            {t(locale, locationError === 'permission' ? 'locationPermissionDenied' : 'locationUnavailable')}
+          </p>
+        )}
+      </div>
       {mapError && (
-        <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
-          <div className="rounded-lg bg-white/90 p-6 shadow">
-            <p className="text-base text-gray-700">{mapError}</p>
-          </div>
+        <div className="map-message map-message--error" role="alert">
+          <p>{t(locale, mapError === 'load' ? 'mapLoadError' : 'mapInitError')}</p>
         </div>
       )}
       {loading && (
-        <div className="absolute top-4 left-4 bg-white px-4 py-2 rounded shadow flex items-center gap-2">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-          <span className="text-sm">로딩 중...</span>
+        <div className="map-message map-message--loading" role="status">
+          <span className="spinner spinner--accent" aria-hidden="true" />
+          <span>{t(locale, 'mapLoading')}</span>
         </div>
       )}
     </div>
   );
 }
-
-

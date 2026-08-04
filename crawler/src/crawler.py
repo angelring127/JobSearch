@@ -25,17 +25,46 @@ def parse_wage(text: str) -> tuple:
     """
     if not text:
         return None, None
-    
-    # 数字を抽出
-    numbers = re.findall(r'\$?\s*(\d+)', text.replace(',', ''))
-    
-    if not numbers:
+
+    normalized = text.translate(str.maketrans({
+        '０': '0', '１': '1', '２': '2', '３': '3', '４': '4',
+        '５': '5', '６': '6', '７': '7', '８': '8', '９': '9',
+        '＄': '$', '～': '~', 'ー': '-',
+    })).replace(',', '')
+
+    normalized = re.sub(r'\b20\d{2}[-/年]\s*\d{1,2}[-/月]\s*\d{1,2}\b', ' ', normalized)
+    normalized = re.sub(r'\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b', ' ', normalized)
+
+    candidate_patterns = [
+        r'(?:\$|cad\s*\$?)\s*(\d{1,3}(?:\.\d{1,2})?)\s*(?:[-~〜–]\s*(?:\$|cad\s*\$?)?\s*(\d{1,3}(?:\.\d{1,2})?))?',
+        r'(?:時給|hourly|wage|pay|給料|賃金|hour|hr|per\s+hour)\D{0,20}(\d{1,3}(?:\.\d{1,2})?)\s*(?:[-~〜–]\s*(\d{1,3}(?:\.\d{1,2})?))?',
+        r'(\d{1,3}(?:\.\d{1,2})?)\s*(?:/h|/hr|/hour|ドル\s*/?\s*時|円\s*/?\s*時)',
+    ]
+
+    candidates = []
+    for pattern in candidate_patterns:
+        for match in re.finditer(pattern, normalized, re.IGNORECASE):
+            low = _valid_hourly_wage(match.group(1))
+            high = _valid_hourly_wage(match.group(2) if len(match.groups()) > 1 else None)
+            if low is None:
+                continue
+            candidates.append((low, high or low))
+
+    if not candidates:
         return None, None
-    
-    wage_min = int(numbers[0])
-    wage_max = int(numbers[-1]) if len(numbers) > 1 else wage_min
-    
+
+    wage_min, wage_max = candidates[0]
     return wage_min, wage_max
+
+
+def _valid_hourly_wage(value: Optional[str]) -> Optional[int]:
+    if not value:
+        return None
+
+    parsed = float(value)
+    if parsed < 10 or parsed > 100:
+        return None
+    return int(round(parsed))
 
 
 def parse_category(title: str, description: str = "") -> Optional[str]:
@@ -44,17 +73,17 @@ def parse_category(title: str, description: str = "") -> Optional[str]:
     """
     text = (title + " " + description).lower()
     
-    if any(word in text for word in ['restaurant', 'cafe', 'kitchen', 'server', 'waiter', 'cook', 'chef']):
+    if any(word in text for word in ['restaurant', 'cafe', 'kitchen', 'server', 'waiter', 'cook', 'chef', '레스토랑', '식당', '카페', '주방', '서버', '스시', '요리', '厨房', 'サーバー', 'レストラン', '調理']):
         return 'restaurant'
-    elif any(word in text for word in ['retail', 'store', 'shop', 'sales', 'cashier']):
+    elif any(word in text for word in ['retail', 'store', 'shop', 'sales', 'cashier', '판매', '매장', '캐시어', '소매', '販売', 'レジ']):
         return 'retail'
-    elif any(word in text for word in ['hotel', 'hospitality', 'front desk', 'reception']):
+    elif any(word in text for word in ['hotel', 'hospitality', 'front desk', 'reception', '호텔', '관광', '리셉션', 'ホテル', '観光', '受付']):
         return 'hospitality'
-    elif any(word in text for word in ['warehouse', 'warehouse', 'logistics', 'forklift']):
+    elif any(word in text for word in ['warehouse', 'logistics', 'forklift', '창고', '물류', '배송', '배달', '倉庫', '物流', '配送']):
         return 'warehouse'
-    elif any(word in text for word in ['construction', 'construction', 'laborer', 'carpenter']):
+    elif any(word in text for word in ['construction', 'laborer', 'carpenter', '건설', '목수', '공사', '建設']):
         return 'construction'
-    elif any(word in text for word in ['cleaning', 'cleaner', 'janitor', 'housekeeping']):
+    elif any(word in text for word in ['cleaning', 'cleaner', 'janitor', 'housekeeping', '청소', '클리너', '하우스키핑', '清掃']):
         return 'cleaning'
     else:
         return 'other'
@@ -393,7 +422,7 @@ def parse_job_post(html: str, url: str, msgid: int) -> Optional[Dict]:
                     content = body.get_text()
         
         # 時給情報を抽出
-        wage_min, wage_max = parse_wage(content)
+        wage_min, wage_max = parse_wage((title or "") + " " + content)
         
         # カテゴリ推測
         category = parse_category(title or "", content)
@@ -533,7 +562,7 @@ def crawl_bbs_listing(listing_url: str, last_msgid: int, client: httpx.Client) -
     # 最初のページを取得
     html = fetch_bbs_page(listing_url, client)
     if not html:
-        return []
+        raise RuntimeError("Failed to fetch listing page: %s" % listing_url)
     
     msgids = extract_msgids_from_listing(html)
     
@@ -577,4 +606,3 @@ def crawl_job_post(msgid: int, base_url: str, bbs_id: int, client: httpx.Client)
     time.sleep(REQUEST_INTERVAL)
     
     return job_data
-

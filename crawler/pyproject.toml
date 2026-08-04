@@ -1,0 +1,14 @@
+[project]
+name = "jobmap-crawler"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = [
+  "beautifulsoup4==4.12.2",
+  "fastapi==0.104.1",
+  "httpx==0.25.1",
+  "lxml==4.9.3",
+  "psycopg2-binary==2.9.11",
+  "python-dotenv==1.0.0",
+  "requests==2.31.0",
+  "uvicorn[standard]==0.24.0",
+]

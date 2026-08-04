@@ -1,0 +1,246 @@
+import logging
+import os
+import sys
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import httpx
+from dotenv import load_dotenv
+from fastapi import Body, FastAPI, Header, HTTPException
+
+SRC_DIR = Path(__file__).resolve().parent / "src"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SRC_DIR))
+
+load_dotenv(PROJECT_ROOT / ".env.local")
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
+from adapters import get_adapter_registry  # noqa: E402
+from crawler import USER_AGENT  # noqa: E402
+from db_direct import DirectDbClient  # noqa: E402
+from geocoding import geocode_location  # noqa: E402
+from posted_date import backfill_missing_posted_dates  # noqa: E402
+from title_translation import backfill_missing_title_translations  # noqa: E402
+
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+logger = logging.getLogger(__name__)
+
+DEFAULT_MAX_POSTS_PER_REGION = 3
+DEFAULT_JOB_RETENTION_DAYS = 14
+ADAPTERS = get_adapter_registry()
+
+app = FastAPI(title="JobMap Crawler")
+
+
+@app.get("/health")
+def health() -> Dict[str, str]:
+    return {"status": "ok", "service": "crawler"}
+
+
+@app.get("/cron/crawl")
+def cron_crawl(authorization: str = Header(default="")) -> Dict[str, Any]:
+    _require_crawler_auth(authorization)
+
+    max_posts = int(os.getenv("CRAWLER_MAX_POSTS_PER_REGION", str(DEFAULT_MAX_POSTS_PER_REGION)))
+    return run_enabled_sources(max_posts_per_region=max_posts, trigger_type="cron")
+
+
+@app.post("/admin/run")
+def admin_run(
+    payload: Optional[Dict[str, Any]] = Body(default=None),
+    authorization: str = Header(default=""),
+) -> Dict[str, Any]:
+    _require_crawler_auth(authorization)
+
+    source_key = (payload or {}).get("source_key") or "jpcanada"
+    max_posts = int((payload or {}).get("max_posts_per_region") or os.getenv("CRAWLER_MAX_POSTS_PER_REGION", str(DEFAULT_MAX_POSTS_PER_REGION)))
+    return run_source_crawl(source_key=source_key, max_posts_per_region=max_posts, trigger_type="manual")
+
+
+def run_enabled_sources(max_posts_per_region: int = DEFAULT_MAX_POSTS_PER_REGION, trigger_type: str = "cron") -> Dict[str, Any]:
+    db = DirectDbClient()
+    sources = db.get_enabled_sources()
+    results = []
+    for source in sources:
+        results.append(
+            run_source_crawl(
+                source_key=source["source_key"],
+                max_posts_per_region=max_posts_per_region,
+                trigger_type=trigger_type,
+                db=db,
+            )
+        )
+
+    status = _aggregate_status(results)
+    posted_date_backfill = backfill_missing_posted_dates(db, ADAPTERS, USER_AGENT)
+    try:
+        retention = {
+            "status": "ok",
+            **db.delete_expired_jobs(retention_days=DEFAULT_JOB_RETENTION_DAYS),
+        }
+    except Exception as exc:
+        logger.exception("Failed to delete expired jobs")
+        retention = {
+            "status": "failed",
+            "retention_days": DEFAULT_JOB_RETENTION_DAYS,
+            "error": str(exc)[:300],
+        }
+        status = "partial" if results else "failed"
+
+    title_translation = backfill_missing_title_translations(db)
+
+    return {
+        "status": status,
+        "sources": results,
+        "processed": sum(item.get("processed", 0) for item in results),
+        "created": sum(item.get("created", 0) for item in results),
+        "updated": sum(item.get("updated", 0) for item in results),
+        "skipped": sum(item.get("skipped", 0) for item in results),
+        "failed": sum(item.get("failed", 0) for item in results),
+        "posted_date_backfill": posted_date_backfill,
+        "retention": retention,
+        "title_translation": title_translation,
+    }
+
+
+def run_crawl(max_posts_per_region: int = DEFAULT_MAX_POSTS_PER_REGION) -> Dict[str, Any]:
+    return run_source_crawl("jpcanada", max_posts_per_region=max_posts_per_region, trigger_type="manual")
+
+
+def run_source_crawl(
+    source_key: str,
+    max_posts_per_region: int = DEFAULT_MAX_POSTS_PER_REGION,
+    trigger_type: str = "cron",
+    db: Optional[DirectDbClient] = None,
+) -> Dict[str, Any]:
+    started_at = time.time()
+    db = db or DirectDbClient()
+    run_id = db.create_crawl_run(source_key, trigger_type)
+    source = db.get_source(source_key)
+    adapter = ADAPTERS.get(source_key)
+    summary = {
+        "run_id": run_id,
+        "source_key": source_key,
+        "status": "ok",
+        "trigger_type": trigger_type,
+        "regions": 0,
+        "processed": 0,
+        "created": 0,
+        "updated": 0,
+        "skipped": 0,
+        "failed": 0,
+        "failures": [],
+    }
+
+    try:
+        if not source:
+            summary["status"] = "failed"
+            _record_failure(summary, {"city": None, "bbs": None}, None, "Unknown crawler source")
+            return summary
+
+        if not source.get("enabled"):
+            summary["status"] = "skipped"
+            summary["skipped"] = 1
+            return summary
+
+        if not adapter:
+            summary["status"] = "failed"
+            _record_failure(summary, {"city": None, "bbs": None}, None, "No crawler adapter registered for source")
+            return summary
+
+        regions = adapter.get_regions(db)
+        summary["regions"] = len(regions)
+
+        with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=30.0, follow_redirects=True) as client:
+            for region in regions:
+                bbs = int(region["bbs"])
+                last_msgid = db.get_last_msgid(source_key, bbs)
+                max_seen_msgid = last_msgid
+
+                try:
+                    msgids = adapter.get_new_item_ids(region, last_msgid, client)
+                except Exception as exc:
+                    _record_failure(summary, region, None, str(exc))
+                    continue
+
+                # Process the oldest pending IDs first so advancing the high-water mark
+                # never skips items when a listing contains more than one crawl batch.
+                for msgid in sorted(set(msgids))[:max_posts_per_region]:
+                    max_seen_msgid = max(max_seen_msgid, msgid)
+                    try:
+                        job_data = adapter.fetch_item(msgid, region, client)
+                        if not job_data:
+                            summary["skipped"] += 1
+                            continue
+
+                        location_text = job_data.get("location_text") or job_data.get("region_hint") or region["city"]
+                        lat, lng, confidence = geocode_location(
+                            location_text,
+                            job_data.get("region_hint") or region["city"],
+                            allow_region_fallback=not bool(job_data.get("location_kind")),
+                        )
+                        if (lat is None or lng is None) and job_data.get("location_fallback_text"):
+                            lat, lng, confidence = geocode_location(
+                                job_data["location_fallback_text"],
+                                job_data.get("region_hint") or region["city"],
+                                allow_region_fallback=False,
+                            )
+                        result = db.upsert_job(source_key, job_data, lat, lng, confidence)
+
+                        summary["processed"] += 1
+                        if result["created"]:
+                            summary["created"] += 1
+                        else:
+                            summary["updated"] += 1
+                    except Exception as exc:
+                        _record_failure(summary, region, msgid, str(exc))
+
+                if max_seen_msgid > last_msgid:
+                    db.update_last_msgid(source_key, bbs, max_seen_msgid)
+
+        if summary["failed"] > 0 and summary["processed"] == 0:
+            summary["status"] = "failed"
+        elif summary["failed"] > 0:
+            summary["status"] = "partial"
+        return summary
+    except Exception as exc:
+        summary["status"] = "failed"
+        _record_failure(summary, {"city": None, "bbs": None}, None, str(exc))
+        return summary
+    finally:
+        summary["duration_sec"] = round(time.time() - started_at, 3)
+        db.record_crawl_failures(run_id, source_key, summary["failures"])
+        db.finish_crawl_run(run_id, source_key, summary)
+
+
+def _record_failure(summary: Dict[str, Any], region: Dict[str, Any], msgid: Any, message: str) -> None:
+    summary["failed"] += 1
+    if len(summary["failures"]) < 10:
+        summary["failures"].append(
+            {
+                "bbs": region.get("bbs"),
+                "city": region.get("city"),
+                "msgid": msgid,
+                "message": message[:300],
+            }
+        )
+
+
+def _require_crawler_auth(authorization: str) -> None:
+    expected = "Bearer %s" % os.getenv("CRON_SECRET", "dev-cron-secret")
+    if authorization != expected:
+        raise HTTPException(status_code=401, detail="Invalid crawler authorization")
+
+
+def _aggregate_status(results: List[Dict[str, Any]]) -> str:
+    if not results:
+        return "skipped"
+    statuses = [item.get("status") for item in results]
+    if any(status == "failed" for status in statuses):
+        return "failed" if all(status == "failed" for status in statuses) else "partial"
+    if any(status == "partial" for status in statuses):
+        return "partial"
+    if all(status == "skipped" for status in statuses):
+        return "skipped"
+    return "ok"

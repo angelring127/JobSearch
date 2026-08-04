@@ -1,0 +1,69 @@
+:root {
+  --color-paper: oklch(98.5% 0.006 255);
+  --color-paper-raised: oklch(99.4% 0.004 255);
+  --color-paper-muted: oklch(95.8% 0.012 255);
+  --color-paper-active: oklch(93.6% 0.027 255);
+  --color-ink: oklch(21% 0.026 258);
+  --color-ink-soft: oklch(34% 0.024 258);
+  --color-muted: oklch(46% 0.022 258);
+  --color-rule: oklch(87% 0.016 255);
+  --color-rule-strong: oklch(72% 0.025 255);
+  --color-accent: oklch(53% 0.19 255);
+  --color-accent-hover: oklch(46% 0.18 255);
+  --color-accent-soft: oklch(92% 0.04 255);
+  --color-accent-ink: oklch(99% 0.004 255);
+  --color-focus: oklch(61% 0.18 248);
+  --color-success: oklch(49% 0.12 153);
+  --color-success-soft: oklch(94% 0.035 153);
+  --color-warning: oklch(51% 0.12 72);
+  --color-warning-soft: oklch(94% 0.045 82);
+  --color-danger: oklch(51% 0.17 27);
+  --color-danger-soft: oklch(95% 0.035 27);
+  --font-display: var(--font-space-grotesk), var(--font-noto-kr), sans-serif;
+  --font-body: var(--font-noto-kr), sans-serif;
+  --font-outlier: ui-monospace, "SFMono-Regular", "SF Mono", monospace;
+
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-md: 1.125rem;
+  --text-lg: 1.375rem;
+  --text-xl: 1.75rem;
+  --text-display: clamp(1.75rem, 1.2rem + 1.2vw, 2.4rem);
+
+  --radius-control: 0.5rem;
+  --radius-panel: 0.75rem;
+  --radius-pill: 999px;
+  --rule-default: 1px solid var(--color-rule);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long: 420ms;
+
+  --shadow-whisper: 0 1px 2px oklch(20% 0.02 258 / 0.08);
+  --shadow-panel: 0 16px 40px oklch(20% 0.02 258 / 0.14);
+
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 400;
+  --z-tooltip: 600;
+
+  --app-bar-height: 4.5rem;
+  --mobile-switcher-height: 4.5rem;
+  --panel-width: 27rem;
+}
