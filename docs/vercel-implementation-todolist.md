@@ -47,7 +47,7 @@ Related plan:
 | M8. Public Localization | `DONE` | Four-language public UI, localized job titles, and visible posting/first-seen dates |
 | M10. Current Multi-source Feed | `DONE` | Refreshed live Jinzai Canada and Vanchosun listings, added conservative duplicate reconciliation with preserved audit history, and published a verified temporary Cloudflare preview |
 | M11. Our Vancouver Completeness | `DONE` | Daum pagination, bounded 14-day backlog processing, and seen-item tracking independently revalidated |
-| M12. Mobile Map-First Header | `VERIFY` | Mobile map default, synchronized top-bar region selection, and compact language control implemented; validation in progress |
+| M12. Mobile Map-First Header | `DONE` | Mobile map default, synchronized top-bar region selection, and compact language control verified |
 
 ## M1. Deployment Foundation
 
@@ -178,7 +178,7 @@ without crowding the top bar.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M12-01 | S | `VERIFY` | Open mobile on the map, add a synchronized region selector to the top bar, and compact the mobile language selector. | Lint, build, mobile/desktop browser, and independent-review validation in progress. |
+| M12-01 | S | `DONE` | Open mobile on the map, add a synchronized region selector to the top bar, and compact the mobile language selector. | Frontend lint/build passed; Playwright at 320, 375, 414, 768, and 1280px found map-first loading, no overflow/overlay/console errors, synchronized region state, and a correctly bounded desktop detail panel; independent review passed. |
 
 ## Progress Update Rules
 
