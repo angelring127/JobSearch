@@ -76,6 +76,53 @@ class CrawlerRouteTests(unittest.TestCase):
             self.assertEqual(api._scheduled_source_limit("ourvancouver"), 80)
             self.assertEqual(api._scheduled_source_limit("vanchosun"), 4)
 
+    def test_enabled_sources_applies_each_scheduled_source_limit(self):
+        db = Mock()
+        db.get_enabled_sources.return_value = [
+            {"source_key": "ourvancouver"},
+            {"source_key": "vanchosun"},
+        ]
+        db.delete_expired_jobs.return_value = {
+            "retention_days": 14,
+            "deleted_sources": 0,
+            "deleted_jobs": 0,
+            "reconciled_jobs": 0,
+        }
+        db.reconcile_duplicate_jobs.return_value = {
+            "checked_jobs": 0,
+            "candidate_pairs": 0,
+            "merged_jobs": 0,
+            "moved_sources": 0,
+        }
+
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "CRAWLER_MAX_POSTS_PER_REGION": "4",
+                    "OURVANCOUVER_MAX_POSTS_PER_REGION": "80",
+                },
+            ),
+            patch.object(api, "DirectDbClient", return_value=db),
+            patch.object(api, "run_source_crawl", return_value={"status": "ok"}) as run_source,
+            patch.object(
+                api,
+                "backfill_missing_title_translations",
+                return_value={"status": "skipped", "reason": "test"},
+            ),
+            patch.object(
+                api,
+                "backfill_missing_posted_dates",
+                return_value={"status": "ok", "requested": 0, "updated": 0, "failed": 0},
+            ),
+        ):
+            api.run_enabled_sources()
+
+        self.assertEqual(
+            [call.kwargs["max_posts_per_region"] for call in run_source.call_args_list],
+            [80, 4],
+        )
+
     def test_refresh_source_preserves_current_listing_order(self):
         db = Mock()
         db.create_crawl_run.return_value = 41

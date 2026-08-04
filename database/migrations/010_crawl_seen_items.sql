@@ -14,6 +14,3 @@ CREATE TABLE IF NOT EXISTS crawl_seen_items (
 
 CREATE INDEX IF NOT EXISTS crawl_seen_items_updated_at_idx
   ON crawl_seen_items (updated_at);
-
-CREATE INDEX IF NOT EXISTS crawl_seen_items_source_lookup_idx
-  ON crawl_seen_items (source_key, bbs, external_id);

@@ -159,7 +159,8 @@ database/migrations/005_dedupe_data_quality.sql
 database/migrations/006_multi_source_adapters.sql
 database/migrations/007_job_retention.sql
 database/migrations/008_job_title_translations.sql
-database/migrations/009_crawl_seen_items.sql
+database/migrations/009_preserve_merge_history_previous_job.sql
+database/migrations/010_crawl_seen_items.sql
 ```
 
 Required extension:
