@@ -35,6 +35,23 @@ class SourceParserTests(unittest.TestCase):
         self.assertEqual(job["category"], "restaurant")
         self.assertEqual(job["posted_at"], "2026-08-02T14:35:09")
 
+    def test_ourvancouver_current_top_level_title_markup(self):
+        detail = """
+        <meta property="og:description"
+              content="1234 West Broadway, Vancouver, BC에서 주방 직원을 모집합니다." />
+        <script>CAFEAPP.ui = { PLAIN_REGDT: '20260804155412' };</script>
+        <span class="article_title">브로드웨이 스시 레스토랑 직원 모집</span>
+        <div id="user_contents" class="board_post tx-content-container"></div>
+        """
+
+        job = parse_ourvancouver_job(detail, "https://example.test/406039", 406039)
+
+        self.assertIsNotNone(job)
+        self.assertEqual(job["title"], "브로드웨이 스시 레스토랑 직원 모집")
+        self.assertEqual(job["region_hint"], "Vancouver")
+        self.assertEqual(job["location_text"], "1234 West Broadway, Vancouver, BC")
+        self.assertEqual(job["posted_at"], "2026-08-04T15:54:12")
+
     def test_jinzaicanada_listing_and_detail(self):
         listing = """
         <a class="job-list__item" href="/job/3378">Newest</a>

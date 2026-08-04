@@ -172,10 +172,15 @@ def parse_ourvancouver_posted_at(html: str) -> Optional[str]:
 
 def parse_ourvancouver_job(html: str, source_url: str, item_id: int) -> Optional[Dict]:
     soup = BeautifulSoup(html, "lxml")
-    title_node = soup.select_one("h3.tit_subject, .bbs_read_tit .article_title")
+    title_node = soup.select_one(
+        "h3.tit_subject, .bbs_read_tit .article_title, span.article_title"
+    )
     content_node = soup.select_one(".tx-content-container")
     title = _clean_text(title_node.get_text(" ", strip=True) if title_node else "")
     content = _clean_text(content_node.get_text(" ", strip=True) if content_node else "")
+    if content_node and not content:
+        description_node = soup.select_one('meta[property="og:description"]')
+        content = _clean_text(description_node.get("content", "") if description_node else "")
     if not title or not content:
         return None
 

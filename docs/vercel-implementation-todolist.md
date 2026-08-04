@@ -50,6 +50,7 @@ Related plan:
 | M12. Mobile Map-First Header | `DONE` | Mobile map default, synchronized top-bar region selection, and compact language control verified |
 | M13. Mobile Map Loading Context | `DONE` | Vancouver-first map, localized mobile region counts, and request-safe viewport loading feedback verified and independently revalidated |
 | M14. Vercel Deployment | `DONE` | Supabase secured and production deployment verified end to end with the pooled database connection |
+| M15. Production Crawl Recovery | `VERIFY` | Live parser recovery and tests pass; independent review, deployment, and production replay remain |
 
 ## M1. Deployment Foundation
 
@@ -200,6 +201,15 @@ record any external configuration still required for a functional production rel
 | --- | --- | --- | --- | --- |
 | M14-01 | S | `DONE` | Link the Vercel project, update the Services configuration, deploy production, and verify its public health. | Production deployment `dpl_7XD5mpS3wos2JDZG2fKFuY2tku4g` is READY at `jobsearch-lake.vercel.app`; home, crawler health, city counts, viewport, and nearby endpoints return 200 through the Supabase Transaction Pooler, while an unauthenticated cron request returns 401. |
 | M14-02 | S | `DONE` | Apply and secure the production Supabase schema for server-only JobMap access. | All 13 migrations applied; RLS and effective Data API denial verified for both API roles, FK advisor findings cleared, frontend/crawler checks passed, and independent review returned PASS at `d1f9e7b`. |
+
+## M15. Production Crawl Recovery
+
+Goal: recover production ingestion after source-side markup and network behavior
+prevented the initial scheduled crawl from producing public map jobs.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M15-01 | S | `VERIFY` | Accept current top-level Our Vancouver title markup and JavaScript-injected body fallback without weakening quality checks. | All 51 crawler tests and compile check pass; representative live detail parses with its original publication time. Independent review, deployment, false-skip replay, and production DB/API evidence pending. |
 
 ## Progress Update Rules
 
