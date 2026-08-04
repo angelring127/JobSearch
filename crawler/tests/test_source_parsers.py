@@ -52,6 +52,17 @@ class SourceParserTests(unittest.TestCase):
         self.assertEqual(job["location_text"], "1234 West Broadway, Vancouver, BC")
         self.assertEqual(job["posted_at"], "2026-08-04T15:54:12")
 
+    def test_ourvancouver_rejects_when_content_sources_are_empty(self):
+        detail = """
+        <meta property="og:description" content="" />
+        <span class="article_title">제목만 있는 게시글</span>
+        <div id="user_contents" class="board_post tx-content-container"></div>
+        """
+
+        self.assertIsNone(
+            parse_ourvancouver_job(detail, "https://example.test/406040", 406040)
+        )
+
     def test_jinzaicanada_listing_and_detail(self):
         listing = """
         <a class="job-list__item" href="/job/3378">Newest</a>
