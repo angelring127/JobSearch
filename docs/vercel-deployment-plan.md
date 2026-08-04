@@ -166,6 +166,9 @@ database/migrations/007_job_retention.sql
 database/migrations/008_job_title_translations.sql
 database/migrations/009_preserve_merge_history_previous_job.sql
 database/migrations/010_crawl_seen_items.sql
+database/migrations/20260804075445_jobmap_data_api_lockdown.sql
+database/migrations/20260804075725_jobmap_revoke_public_schema_access.sql
+database/migrations/20260804075814_jobmap_foreign_key_indexes.sql
 ```
 
 Required extension:
