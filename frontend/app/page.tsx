@@ -6,9 +6,11 @@ import JobDetail from '@/components/JobDetail';
 import JobList from '@/components/JobList';
 import Map from '@/components/Map';
 import SearchBar from '@/components/SearchBar';
-import { JobSource } from '@/lib/api';
+import { getCityJobCounts, JobSource, type CityJobCounts } from '@/lib/api';
+import { CITY_PRESETS } from '@/lib/city-presets';
 import {
   formatNumber,
+  getCityLabel,
   isLocale,
   LANGUAGE_OPTIONS,
   LOCALE_TAGS,
@@ -31,7 +33,10 @@ export default function Home() {
   const [filters, setFilters] = useState<Filters>({});
   const [mapCenter, setMapCenter] = useState<[number, number]>([-101.5, 54.2]);
   const [mapZoom, setMapZoom] = useState(3);
-  const [mobileView, setMobileView] = useState<MobileView>('list');
+  const [mobileView, setMobileView] = useState<MobileView>('map');
+  const [selectedCity, setSelectedCity] = useState('canada');
+  const [cityCounts, setCityCounts] = useState<CityJobCounts | null>(null);
+  const [cityCountError, setCityCountError] = useState(false);
   const [locale, setLocale] = useState<Locale>('ko');
 
   useEffect(() => {
@@ -43,6 +48,26 @@ export default function Home() {
     document.documentElement.lang = LOCALE_TAGS[locale];
     document.title = t(locale, 'metaTitle');
   }, [locale]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    getCityJobCounts(controller.signal)
+      .then((response) => {
+        if (!response.success || !response.data) {
+          throw new Error(response.error?.message ?? 'City count request failed');
+        }
+        setCityCounts(response.data);
+        setCityCountError(false);
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        console.error('City count error:', error);
+        setCityCountError(true);
+      });
+
+    return () => controller.abort();
+  }, []);
 
   const handleJobsUpdate = useCallback((newJobs: JobSource[]) => {
     setJobs(newJobs);
@@ -63,6 +88,12 @@ export default function Home() {
     handleMapCenterChange(center, zoom);
     setMobileView('map');
   }, [handleMapCenterChange]);
+
+  const handleCityChange = useCallback((value: string) => {
+    setSelectedCity(value);
+    const city = CITY_PRESETS.find((preset) => preset.value === value);
+    if (city) handleLocationSelect(city.center, city.zoom);
+  }, [handleLocationSelect]);
 
   const handleJobSelect = useCallback((job: JobSource) => {
     setSelectedJob(job);
@@ -85,12 +116,39 @@ export default function Home() {
           <span className="wordmark__mark" aria-hidden="true">JM</span>
           <span className="wordmark__text">JobMap</span>
         </div>
+        <label className="header-region-select">
+          <span className="sr-only">{t(locale, 'cityQuick')}</span>
+          <select
+            value={selectedCity}
+            onChange={(event) => handleCityChange(event.target.value)}
+            aria-label={t(locale, 'cityQuick')}
+          >
+            <option value="" disabled>{t(locale, 'chooseCity')}</option>
+            {CITY_PRESETS.map((city) => (
+              <option key={city.value} value={city.value}>
+                {getCityLabel(city.value, locale, city.label)}
+              </option>
+            ))}
+          </select>
+        </label>
         <div className="app-bar__actions">
           <div className="app-bar__status" aria-live="polite">
             <span className="status-dot" aria-hidden="true" />
             {t(locale, 'allCanada')} · {formatNumber(jobs.length, locale)}{t(locale, 'postings')}
           </div>
-          <label className="language-select">
+          <label className="language-select language-select--compact">
+            <span className="sr-only">{t(locale, 'language')}</span>
+            <select
+              value={locale}
+              onChange={(event) => handleLocaleChange(event.target.value as Locale)}
+              aria-label={t(locale, 'language')}
+            >
+              {LANGUAGE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.compactLabel}</option>
+              ))}
+            </select>
+          </label>
+          <label className="language-select language-select--full">
             <span className="sr-only">{t(locale, 'language')}</span>
             <select
               value={locale}
@@ -114,7 +172,14 @@ export default function Home() {
           </div>
 
           <div className="search-section">
-            <SearchBar onLocationSelect={handleLocationSelect} locale={locale} />
+            <SearchBar
+              onLocationSelect={handleLocationSelect}
+              selectedCity={selectedCity}
+              cityCounts={cityCounts}
+              cityCountError={cityCountError}
+              onCityChange={handleCityChange}
+              locale={locale}
+            />
           </div>
 
           <FilterBar filters={filters} onFilterChange={handleFilterChange} locale={locale} />

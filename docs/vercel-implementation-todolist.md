@@ -46,7 +46,8 @@ Related plan:
 | M7. Crawl Quality | `DONE` | AI-assisted quality gate with business-name location precedence and grounded neighborhood fallback |
 | M8. Public Localization | `DONE` | Four-language public UI, localized job titles, and visible posting/first-seen dates |
 | M10. Current Multi-source Feed | `DONE` | Refreshed live Jinzai Canada and Vanchosun listings, added conservative duplicate reconciliation with preserved audit history, and published a verified temporary Cloudflare preview |
-| M11. Our Vancouver Completeness | `VERIFY` | Daum pagination, bounded 14-day backlog processing, and seen-item tracking implemented; validation in progress |
+| M11. Our Vancouver Completeness | `DONE` | Daum pagination, bounded 14-day backlog processing, and seen-item tracking independently revalidated |
+| M12. Mobile Map-First Header | `VERIFY` | Mobile map default, synchronized top-bar region selection, and compact language control implemented; validation in progress |
 
 ## M1. Deployment Foundation
 
@@ -168,7 +169,16 @@ public retention to the current two-week window.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M11-01 | M | `VERIFY` | Paginate the Daum mobile listing, process unseen recent posts in bounded new-first batches, and retain public records for 14 days. | Implementation complete; crawler, database, frontend, live-source, and independent-review validation in progress. |
+| M11-01 | M | `DONE` | Paginate the Daum mobile listing, process unseen recent posts in bounded new-first batches, and retain public records for 14 days. | 49 crawler tests and compile pass; live discovery found the bounded recent window, controlled batches preserved public data quality, migration ordering was remediated, and independent revalidation passed. |
+
+## M12. Mobile Map-First Header
+
+Goal: prioritize map browsing on phones and keep region/language controls usable
+without crowding the top bar.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M12-01 | S | `VERIFY` | Open mobile on the map, add a synchronized region selector to the top bar, and compact the mobile language selector. | Lint, build, mobile/desktop browser, and independent-review validation in progress. |
 
 ## Progress Update Rules
 

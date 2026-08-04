@@ -1,12 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { getCityJobCounts, type CityJobCounts } from '@/lib/api';
+import type { CityJobCounts } from '@/lib/api';
 import { CITY_PRESETS } from '@/lib/city-presets';
 import { formatNumber, getCityLabel, LOCALE_TAGS, t, type Locale } from '@/lib/i18n';
 
 interface SearchBarProps {
   onLocationSelect: (center: [number, number], zoom?: number) => void;
+  selectedCity: string;
+  cityCounts: CityJobCounts | null;
+  cityCountError: boolean;
+  onCityChange: (value: string) => void;
   locale: Locale;
 }
 
@@ -16,39 +20,23 @@ interface GeocodeResult {
   display_name: string;
 }
 
-export default function SearchBar({ onLocationSelect, locale }: SearchBarProps) {
+export default function SearchBar({
+  onLocationSelect,
+  selectedCity,
+  cityCounts,
+  cityCountError,
+  onCityChange,
+  locale,
+}: SearchBarProps) {
   const inputId = useId();
   const listboxId = useId();
   const citySelectId = useId();
-  const [selectedCity, setSelectedCity] = useState('');
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<GeocodeResult[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [searchError, setSearchError] = useState('');
-  const [cityCounts, setCityCounts] = useState<CityJobCounts | null>(null);
-  const [cityCountError, setCityCountError] = useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    getCityJobCounts(controller.signal)
-      .then((response) => {
-        if (!response.success || !response.data) {
-          throw new Error(response.error?.message ?? 'City count request failed');
-        }
-
-        setCityCounts(response.data);
-      })
-      .catch((error) => {
-        if (error instanceof DOMException && error.name === 'AbortError') return;
-        console.error('City count error:', error);
-        setCityCountError(true);
-      });
-
-    return () => controller.abort();
-  }, []);
 
   const searchLocations = useCallback(async (searchQuery: string, limit: number) => {
     const response = await fetch(
@@ -103,20 +91,19 @@ export default function SearchBar({ onLocationSelect, locale }: SearchBarProps) 
 
   const handleResultSelect = useCallback((result: GeocodeResult) => {
     onLocationSelect([parseFloat(result.lon), parseFloat(result.lat)], 15);
-    setSelectedCity('');
+    onCityChange('');
     setQuery(result.display_name);
     setShowResults(false);
-  }, [onLocationSelect]);
+  }, [onCityChange, onLocationSelect]);
 
   const handleCitySelect = useCallback((value: string) => {
     const city = CITY_PRESETS.find((preset) => preset.value === value);
     if (!city) return;
 
-    setSelectedCity(city.value);
     setShowResults(false);
     setSearchError('');
-    onLocationSelect(city.center, city.zoom);
-  }, [onLocationSelect]);
+    onCityChange(city.value);
+  }, [onCityChange]);
 
   const handleSearchClick = useCallback(async () => {
     if (!query.trim()) return;
