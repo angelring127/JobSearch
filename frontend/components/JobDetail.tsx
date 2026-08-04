@@ -83,12 +83,6 @@ export default function JobDetail({ job, onClose, locale }: JobDetailProps) {
             <dd>{sourceName}</dd>
           </div>
         )}
-        {job.lat !== null && job.lng !== null && (
-          <div>
-            <dt>{t(locale, 'coordinates')}</dt>
-            <dd className="mono-value">{job.lat.toFixed(4)}, {job.lng.toFixed(4)}</dd>
-          </div>
-        )}
       </dl>
 
       <a className="primary-button job-detail__source" href={job.source_url} target="_blank" rel="noopener noreferrer">
