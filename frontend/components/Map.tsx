@@ -39,6 +39,7 @@ export default function Map({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const mapLoadedRef = useRef(false);
+  const mapErrorRef = useRef(false);
   const markersRef = useRef<Marker[]>([]);
   const userLocationMarkerRef = useRef<Marker | null>(null);
   const viewportRequestRef = useRef<AbortController | null>(null);
@@ -253,6 +254,7 @@ export default function Map({
       // 지도 에러 핸들러
       mapInstance.on('error', (e) => {
         console.error('Map error:', e);
+        mapErrorRef.current = true;
         viewportRequestIdRef.current += 1;
         viewportRequestRef.current?.abort();
         viewportRequestRef.current = null;
@@ -265,6 +267,7 @@ export default function Map({
         console.log('Map loaded successfully');
         mapLoadedRef.current = true;
         const handleMapMoveStart = () => {
+          if (mapErrorRef.current) return;
           viewportRequestIdRef.current += 1;
           viewportRequestRef.current?.abort();
           viewportRequestRef.current = null;
@@ -273,6 +276,10 @@ export default function Map({
 
         // 지도 이동 완료 후 현재 범위의 공고를 다시 불러온다.
         const handleMapMove = () => {
+          if (mapErrorRef.current) {
+            setLoading(false);
+            return;
+          }
           if (moveDebounceRef.current) clearTimeout(moveDebounceRef.current);
           moveDebounceRef.current = setTimeout(() => {
             if (map.current) {
@@ -294,12 +301,14 @@ export default function Map({
       });
     } catch (error) {
       console.error('Failed to initialize map', error);
+      mapErrorRef.current = true;
       setLoading(false);
       setMapError('init');
       return;
     }
 
     return () => {
+      mapErrorRef.current = true;
       viewportRequestIdRef.current += 1;
       viewportRequestRef.current?.abort();
       viewportRequestRef.current = null;
