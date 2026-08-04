@@ -16,6 +16,24 @@ class CrawlerRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok", "service": "crawler"})
 
+    def test_vercel_prefixed_routes(self):
+        health_response = self.client.get("/crawler/health")
+        self.assertEqual(health_response.status_code, 200)
+        self.assertEqual(health_response.json(), {"status": "ok", "service": "crawler"})
+
+        summary = {"status": "ok", "sources": []}
+        with (
+            patch.dict(os.environ, {"CRON_SECRET": "test-secret"}),
+            patch.object(api, "run_enabled_sources", return_value=summary) as run_enabled,
+        ):
+            cron_response = self.client.get(
+                "/crawler/cron/crawl",
+                headers={"Authorization": "Bearer test-secret"},
+            )
+        self.assertEqual(cron_response.status_code, 200)
+        self.assertEqual(cron_response.json(), summary)
+        run_enabled.assert_called_once()
+
     def test_cron_rejects_invalid_authorization(self):
         with patch.dict(os.environ, {"CRON_SECRET": "test-secret"}):
             response = self.client.get(

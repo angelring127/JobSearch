@@ -34,17 +34,20 @@ ADAPTERS = get_adapter_registry()
 app = FastAPI(title="JobMap Crawler")
 
 
+@app.get("/crawler/health", include_in_schema=False)
 @app.get("/health")
 def health() -> Dict[str, str]:
     return {"status": "ok", "service": "crawler"}
 
 
+@app.get("/crawler/cron/crawl", include_in_schema=False)
 @app.get("/cron/crawl")
 def cron_crawl(authorization: str = Header(default="")) -> Dict[str, Any]:
     _require_crawler_auth(authorization)
     return run_enabled_sources(trigger_type="cron")
 
 
+@app.post("/crawler/admin/run", include_in_schema=False)
 @app.post("/admin/run")
 def admin_run(
     payload: Optional[Dict[str, Any]] = Body(default=None),

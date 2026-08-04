@@ -37,16 +37,21 @@ Planned root `vercel.json`:
 
 ```json
 {
-  "experimentalServices": {
+  "services": {
     "web": {
-      "entrypoint": "frontend",
-      "routePrefix": "/"
+      "root": "frontend/",
+      "framework": "nextjs"
     },
     "crawler": {
-      "entrypoint": "crawler/api.py",
-      "routePrefix": "/crawler"
+      "root": "crawler/",
+      "framework": "fastapi",
+      "entrypoint": "api:app"
     }
   },
+  "rewrites": [
+    { "source": "/crawler/(.*)", "destination": { "service": "crawler" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ],
   "crons": [
     {
       "path": "/crawler/cron/crawl",

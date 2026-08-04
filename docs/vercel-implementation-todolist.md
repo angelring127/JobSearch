@@ -48,7 +48,8 @@ Related plan:
 | M10. Current Multi-source Feed | `DONE` | Refreshed live Jinzai Canada and Vanchosun listings, added conservative duplicate reconciliation with preserved audit history, and published a verified temporary Cloudflare preview |
 | M11. Our Vancouver Completeness | `DONE` | Daum pagination, bounded 14-day backlog processing, and seen-item tracking independently revalidated |
 | M12. Mobile Map-First Header | `DONE` | Mobile map default, synchronized top-bar region selection, and compact language control verified |
-| M13. Mobile Map Loading Context | `VERIFY` | Vancouver-first map, mobile region counts, and request-safe viewport loading feedback implemented; validation in progress |
+| M13. Mobile Map Loading Context | `DONE` | Vancouver-first map, localized mobile region counts, and request-safe viewport loading feedback verified and independently revalidated |
+| M14. Vercel Deployment | `BLOCKED` | Production shell deployed and crawler health verified; public job APIs require a production Supabase `DATABASE_URL` |
 
 ## M1. Deployment Foundation
 
@@ -188,7 +189,16 @@ viewport loading visible without showing stale results.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M13-01 | S | `VERIFY` | Show localized counts in the mobile region selector, open on Vancouver, and display a request-safe loading status while map pins refresh. | Pending frontend lint/build, delayed and overlapping request browser checks, mobile width checks, and independent review. |
+| M13-01 | S | `DONE` | Show localized counts in the mobile region selector, open on Vancouver, and display a request-safe loading status while map pins refresh. | Frontend lint/build and diff check passed; Playwright verified Vancouver zoom 10, localized counts at 320–1280px with no overflow, visible non-blocking loading with existing pins retained, latest-response-wins for delayed/overlapping requests, loader settlement after fetch and map errors, and independent remediation revalidation passed. |
+
+## M14. Vercel Deployment
+
+Goal: publish the verified application through the linked Vercel project and
+record any external configuration still required for a functional production release.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M14-01 | S | `BLOCKED` | Link the Vercel project, update the Services configuration, deploy production, and verify its public health. | `jobsearch` linked and deployed to `jobsearch-lake.vercel.app`; `/` and `/crawler/health` return 200, but `/api/jobs/city-counts` returns 500 because production `DATABASE_URL` is not configured. Configure Supabase/PostGIS and the remaining production secrets before functional production verification. |
 
 ## Progress Update Rules
 
