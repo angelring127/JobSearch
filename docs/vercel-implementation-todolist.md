@@ -49,7 +49,7 @@ Related plan:
 | M11. Our Vancouver Completeness | `DONE` | Daum pagination, bounded 14-day backlog processing, and seen-item tracking independently revalidated |
 | M12. Mobile Map-First Header | `DONE` | Mobile map default, synchronized top-bar region selection, and compact language control verified |
 | M13. Mobile Map Loading Context | `DONE` | Vancouver-first map, localized mobile region counts, and request-safe viewport loading feedback verified and independently revalidated |
-| M14. Vercel Deployment | `VERIFY` | Supabase schema and Data API lockdown applied; checkpoint review and Vercel database connection remain |
+| M14. Vercel Deployment | `BLOCKED` | Supabase schema and Data API lockdown independently verified; Vercel still needs the production database connection |
 
 ## M1. Deployment Foundation
 
@@ -199,7 +199,7 @@ record any external configuration still required for a functional production rel
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M14-01 | S | `BLOCKED` | Link the Vercel project, update the Services configuration, deploy production, and verify its public health. | `jobsearch` is deployed; a password-bearing Supabase Transaction Pooler `DATABASE_URL` must be added directly to Vercel before functional API verification. |
-| M14-02 | S | `VERIFY` | Apply and secure the production Supabase schema for server-only JobMap access. | Existing migrations plus RLS, privilege lockdown, schema-access removal, and foreign-key indexes applied; independent checkpoint review pending. |
+| M14-02 | S | `DONE` | Apply and secure the production Supabase schema for server-only JobMap access. | All 13 migrations applied; RLS and effective Data API denial verified for both API roles, FK advisor findings cleared, frontend/crawler checks passed, and independent review returned PASS at `d1f9e7b`. |
 
 ## Progress Update Rules
 
