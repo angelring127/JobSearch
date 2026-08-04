@@ -45,7 +45,7 @@ Related plan:
 | M6. Data Retention | `DONE` | Scheduled crawl removes records older than 14 days and reconciles representative jobs |
 | M7. Crawl Quality | `DONE` | AI-assisted quality gate with business-name location precedence and grounded neighborhood fallback |
 | M8. Public Localization | `DONE` | Four-language public UI, localized job titles, and visible posting/first-seen dates |
-| M10. Current Multi-source Feed | `VERIFY` | Refresh live Jinzai Canada and Vanchosun listings, reconcile high-confidence duplicate representatives, and publish a temporary Cloudflare preview |
+| M10. Current Multi-source Feed | `DONE` | Refreshed live Jinzai Canada and Vanchosun listings, added conservative duplicate reconciliation with preserved audit history, and published a verified temporary Cloudflare preview |
 
 ## M1. Deployment Foundation
 
@@ -157,8 +157,8 @@ Goal: keep the public feed current across active sources, collapse high-confiden
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M10-01 | M | `VERIFY` | Refresh live Jinzai Canada and Vanchosun listings and reconcile high-confidence cross-source or same-source duplicate representatives while preserving raw sources. | Code and live ingestion complete; validation and independent review are in progress. |
-| M10-02 | S | `VERIFY` | Expose the verified local frontend through a temporary Cloudflare Quick Tunnel. | Quick Tunnel is live; final availability check is in progress. |
+| M10-01 | M | `DONE` | Refresh live Jinzai Canada and Vanchosun listings and reconcile high-confidence cross-source or same-source duplicate representatives while preserving raw sources. | Live DB contains 40 raw sources and 40 representatives with no high-confidence duplicate pair; public API exposes 29 map-eligible jobs from three sources with complete four-language titles and actual source dates. Python compile, 41 tests, transactional merge-history checks, DB integrity checks, and Claude remediation revalidation passed. |
+| M10-02 | S | `DONE` | Expose the verified local frontend through a temporary Cloudflare Quick Tunnel. | Quick Tunnel returned HTTP 200; its viewport API returned the same 29 jobs from three sources, and real-browser checks found meaningful content, no error overlay, and no console errors. |
 
 ## Progress Update Rules
 
