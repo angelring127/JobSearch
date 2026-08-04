@@ -27,6 +27,7 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_POSTS_PER_REGION = 3
+DEFAULT_OURVANCOUVER_MAX_POSTS_PER_REGION = 100
 DEFAULT_JOB_RETENTION_DAYS = 14
 ADAPTERS = get_adapter_registry()
 
@@ -41,9 +42,7 @@ def health() -> Dict[str, str]:
 @app.get("/cron/crawl")
 def cron_crawl(authorization: str = Header(default="")) -> Dict[str, Any]:
     _require_crawler_auth(authorization)
-
-    max_posts = int(os.getenv("CRAWLER_MAX_POSTS_PER_REGION", str(DEFAULT_MAX_POSTS_PER_REGION)))
-    return run_enabled_sources(max_posts_per_region=max_posts, trigger_type="cron")
+    return run_enabled_sources(trigger_type="cron")
 
 
 @app.post("/admin/run")
@@ -54,11 +53,17 @@ def admin_run(
     _require_crawler_auth(authorization)
 
     source_key = (payload or {}).get("source_key") or "jpcanada"
-    max_posts = int((payload or {}).get("max_posts_per_region") or os.getenv("CRAWLER_MAX_POSTS_PER_REGION", str(DEFAULT_MAX_POSTS_PER_REGION)))
+    max_posts = int(
+        (payload or {}).get("max_posts_per_region")
+        or os.getenv("CRAWLER_MAX_POSTS_PER_REGION", str(DEFAULT_MAX_POSTS_PER_REGION))
+    )
     return run_source_crawl(source_key=source_key, max_posts_per_region=max_posts, trigger_type="manual")
 
 
-def run_enabled_sources(max_posts_per_region: int = DEFAULT_MAX_POSTS_PER_REGION, trigger_type: str = "cron") -> Dict[str, Any]:
+def run_enabled_sources(
+    max_posts_per_region: Optional[int] = None,
+    trigger_type: str = "cron",
+) -> Dict[str, Any]:
     db = DirectDbClient()
     sources = db.get_enabled_sources()
     results = []
@@ -66,7 +71,11 @@ def run_enabled_sources(max_posts_per_region: int = DEFAULT_MAX_POSTS_PER_REGION
         results.append(
             run_source_crawl(
                 source_key=source["source_key"],
-                max_posts_per_region=max_posts_per_region,
+                max_posts_per_region=(
+                    max_posts_per_region
+                    if max_posts_per_region is not None
+                    else _scheduled_source_limit(source["source_key"])
+                ),
                 trigger_type=trigger_type,
                 db=db,
             )
@@ -176,20 +185,38 @@ def run_source_crawl(
                     _record_failure(summary, region, None, str(exc))
                     continue
 
-                if adapter.refresh_current_listing:
+                unique_msgids = list(dict.fromkeys(msgids))
+                if getattr(adapter, "scan_recent_window", False) is True:
+                    seen_msgids = db.get_seen_item_ids(source_key, bbs, unique_msgids)
+                    unseen_msgids = [msgid for msgid in unique_msgids if msgid not in seen_msgids]
+                    # This source scans the entire recent window on every run.
+                    # Prefer the newest unseen current posts, then fill remaining
+                    # capacity from the newest unseen backlog below the cursor.
+                    new_msgids = sorted(
+                        (msgid for msgid in unseen_msgids if msgid > last_msgid),
+                        reverse=True,
+                    )
+                    backlog_msgids = sorted(
+                        (msgid for msgid in unseen_msgids if msgid <= last_msgid),
+                        reverse=True,
+                    )
+                    selected_msgids = (new_msgids + backlog_msgids)[:max_posts_per_region]
+                elif adapter.refresh_current_listing:
                     # Refresh-style boards can bump an older post ID back to the
                     # top. Preserve listing order so the current public rows win.
-                    selected_msgids = list(dict.fromkeys(msgids))[:max_posts_per_region]
+                    selected_msgids = unique_msgids[:max_posts_per_region]
                 else:
                     # Process the oldest pending IDs first so advancing the
                     # high-water mark never skips a normal monotonic source.
-                    selected_msgids = sorted(set(msgids))[:max_posts_per_region]
+                    selected_msgids = sorted(unique_msgids)[:max_posts_per_region]
 
                 for msgid in selected_msgids:
                     max_seen_msgid = max(max_seen_msgid, msgid)
                     try:
                         job_data = adapter.fetch_item(msgid, region, client)
                         if not job_data:
+                            if getattr(adapter, "scan_recent_window", False) is True:
+                                db.mark_crawl_item_seen(source_key, bbs, msgid, "skipped")
                             summary["skipped"] += 1
                             continue
 
@@ -209,6 +236,8 @@ def run_source_crawl(
                                 allow_region_fallback=False,
                             )
                         result = db.upsert_job(source_key, job_data, lat, lng, confidence)
+                        if getattr(adapter, "scan_recent_window", False) is True:
+                            db.mark_crawl_item_seen(source_key, bbs, msgid, "stored")
 
                         summary["processed"] += 1
                         if result["created"]:
@@ -247,6 +276,23 @@ def _record_failure(summary: Dict[str, Any], region: Dict[str, Any], msgid: Any,
                 "message": message[:300],
             }
         )
+
+
+def _scheduled_source_limit(source_key: str) -> int:
+    global_limit = int(
+        os.getenv("CRAWLER_MAX_POSTS_PER_REGION", str(DEFAULT_MAX_POSTS_PER_REGION))
+    )
+    if source_key == "ourvancouver":
+        return max(
+            1,
+            int(
+                os.getenv(
+                    "OURVANCOUVER_MAX_POSTS_PER_REGION",
+                    str(DEFAULT_OURVANCOUVER_MAX_POSTS_PER_REGION),
+                )
+            ),
+        )
+    return max(1, global_limit)
 
 
 def _require_crawler_auth(authorization: str) -> None:

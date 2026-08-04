@@ -65,6 +65,17 @@ class CrawlerRouteTests(unittest.TestCase):
             trigger_type="manual",
         )
 
+    def test_scheduled_source_limit_uses_ourvancouver_override(self):
+        with patch.dict(
+            os.environ,
+            {
+                "CRAWLER_MAX_POSTS_PER_REGION": "4",
+                "OURVANCOUVER_MAX_POSTS_PER_REGION": "80",
+            },
+        ):
+            self.assertEqual(api._scheduled_source_limit("ourvancouver"), 80)
+            self.assertEqual(api._scheduled_source_limit("vanchosun"), 4)
+
     def test_refresh_source_preserves_current_listing_order(self):
         db = Mock()
         db.create_crawl_run.return_value = 41
@@ -98,6 +109,71 @@ class CrawlerRouteTests(unittest.TestCase):
             [call.args[0] for call in adapter.fetch_item.call_args_list],
             [90, 110],
         )
+
+    def test_recent_window_source_prioritizes_new_then_unseen_backlog(self):
+        db = Mock()
+        db.create_crawl_run.return_value = 42
+        db.get_source.return_value = {"source_key": "recent", "enabled": True}
+        db.get_last_msgid.return_value = 110
+        db.get_seen_item_ids.return_value = {115}
+        db.upsert_job.return_value = {"created": True}
+
+        adapter = Mock()
+        adapter.scan_recent_window = True
+        adapter.refresh_current_listing = False
+        adapter.get_regions.return_value = [
+            {"city": "Vancouver", "bbs": 1, "listing_url": "https://example.test/jobs"}
+        ]
+        adapter.get_new_item_ids.return_value = [105, 120, 100, 115, 120]
+        adapter.fetch_item.side_effect = [
+            {
+                "msgid": 120,
+                "source_url": "https://example.test/jobs/120",
+                "title": "New restaurant role",
+                "region_hint": "Vancouver",
+                "location_text": "100 Main St",
+                "location_kind": "street_address",
+            },
+            None,
+        ]
+
+        with (
+            patch.dict(api.ADAPTERS, {"recent": adapter}),
+            patch.object(api, "geocode_location", return_value=(49.28, -123.12, 0.8)),
+        ):
+            summary = api.run_source_crawl("recent", max_posts_per_region=2, db=db)
+
+        self.assertEqual([call.args[0] for call in adapter.fetch_item.call_args_list], [120, 105])
+        db.get_seen_item_ids.assert_called_once_with("recent", 1, [105, 120, 100, 115])
+        self.assertEqual(
+            [call.args for call in db.mark_crawl_item_seen.call_args_list],
+            [("recent", 1, 120, "stored"), ("recent", 1, 105, "skipped")],
+        )
+        db.update_last_msgid.assert_called_once_with("recent", 1, 120)
+        self.assertEqual(summary["processed"], 1)
+        self.assertEqual(summary["skipped"], 1)
+
+    def test_recent_window_failure_is_not_marked_seen(self):
+        db = Mock()
+        db.create_crawl_run.return_value = 43
+        db.get_source.return_value = {"source_key": "recent", "enabled": True}
+        db.get_last_msgid.return_value = 110
+        db.get_seen_item_ids.return_value = set()
+
+        adapter = Mock()
+        adapter.scan_recent_window = True
+        adapter.refresh_current_listing = False
+        adapter.get_regions.return_value = [
+            {"city": "Vancouver", "bbs": 1, "listing_url": "https://example.test/jobs"}
+        ]
+        adapter.get_new_item_ids.return_value = [120]
+        adapter.fetch_item.side_effect = RuntimeError("temporary detail failure")
+
+        with patch.dict(api.ADAPTERS, {"recent": adapter}):
+            summary = api.run_source_crawl("recent", max_posts_per_region=1, db=db)
+
+        db.mark_crawl_item_seen.assert_not_called()
+        self.assertEqual(summary["failed"], 1)
 
     def test_enabled_sources_runs_retention_cleanup_once(self):
         db = Mock()

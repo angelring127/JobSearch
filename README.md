@@ -84,7 +84,7 @@ Vercel 배포는 루트 `vercel.json`의 Services 구성을 기준으로 합니�
 - `crawler`: `crawler/api.py` FastAPI 서비스. Vercel Cron이 `/crawler/cron/crawl`을 호출합니다.
 - 데이터베이스: 프로덕션은 Supabase PostgreSQL + PostGIS, 로컬은 Docker PostGIS를 사용합니다.
 
-Vercel Project Settings의 Framework Preset은 `Services`로 설정하세요. 필요한 환경 변수는 `DATABASE_URL`, `CRON_SECRET`, `CRAWLER_MAX_POSTS_PER_REGION`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `CRAWLER_SERVICE_URL`입니다. 우벤유의 애매한 게시글 판정과 한국어·영어·일본어·중국어 구인 제목 번역에는 서버 전용 `CODEX_BRIDGE_BASE_URL`, `CODEX_BRIDGE_API_KEY`, `CODEX_BRIDGE_MODEL`을 사용합니다. Bridge가 없거나 일시적으로 실패해도 크롤링은 계속되고 원문 제목이 표시됩니다.
+Vercel Project Settings의 Framework Preset은 `Services`로 설정하세요. 필요한 환경 변수는 `DATABASE_URL`, `CRON_SECRET`, `CRAWLER_MAX_POSTS_PER_REGION`, `OURVANCOUVER_MAX_POSTS_PER_REGION`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `CRAWLER_SERVICE_URL`입니다. `OURVANCOUVER_MAX_POSTS_PER_REGION`은 14일 분량의 우벤유 누락 공고를 새 글 우선의 제한된 배치로 보충할 때 사용하며 기본값은 100입니다. 우벤유의 애매한 게시글 판정과 한국어·영어·일본어·중국어 구인 제목 번역에는 서버 전용 `CODEX_BRIDGE_BASE_URL`, `CODEX_BRIDGE_API_KEY`, `CODEX_BRIDGE_MODEL`을 사용합니다. Bridge가 없거나 일시적으로 실패해도 크롤링은 계속되고 원문 제목이 표시됩니다.
 
 로컬에서 Vercel용 크롤러 서비스를 확인하려면 다음을 실행합니다.
 

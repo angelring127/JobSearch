@@ -46,6 +46,7 @@ Related plan:
 | M7. Crawl Quality | `DONE` | AI-assisted quality gate with business-name location precedence and grounded neighborhood fallback |
 | M8. Public Localization | `DONE` | Four-language public UI, localized job titles, and visible posting/first-seen dates |
 | M10. Current Multi-source Feed | `DONE` | Refreshed live Jinzai Canada and Vanchosun listings, added conservative duplicate reconciliation with preserved audit history, and published a verified temporary Cloudflare preview |
+| M11. Our Vancouver Completeness | `VERIFY` | Daum pagination, bounded 14-day backlog processing, and seen-item tracking implemented; validation in progress |
 
 ## M1. Deployment Foundation
 
@@ -159,6 +160,15 @@ Goal: keep the public feed current across active sources, collapse high-confiden
 | --- | --- | --- | --- | --- |
 | M10-01 | M | `DONE` | Refresh live Jinzai Canada and Vanchosun listings and reconcile high-confidence cross-source or same-source duplicate representatives while preserving raw sources. | Live DB contains 40 raw sources and 40 representatives with no high-confidence duplicate pair; public API exposes 29 map-eligible jobs from three sources with complete four-language titles and actual source dates. Python compile, 41 tests, transactional merge-history checks, DB integrity checks, and Claude remediation revalidation passed. |
 | M10-02 | S | `DONE` | Expose the verified local frontend through a temporary Cloudflare Quick Tunnel. | Quick Tunnel returned HTTP 200; its viewport API returned the same 29 jobs from three sources, and real-browser checks found meaningful content, no error overlay, and no console errors. |
+
+## M11. Our Vancouver Completeness
+
+Goal: discover Our Vancouver postings beyond page 1 while limiting ingestion and
+public retention to the current two-week window.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M11-01 | M | `VERIFY` | Paginate the Daum mobile listing, process unseen recent posts in bounded new-first batches, and retain public records for 14 days. | Implementation complete; crawler, database, frontend, live-source, and independent-review validation in progress. |
 
 ## Progress Update Rules
 

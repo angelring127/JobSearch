@@ -197,6 +197,15 @@ class DirectDbClient:
                 )
                 deleted_jobs = len(cur.fetchall())
 
+                cur.execute(
+                    """
+                    DELETE FROM crawl_seen_items
+                    WHERE updated_at < NOW() - make_interval(days => %s)
+                    """,
+                    (retention_days,),
+                )
+                deleted_seen_items = cur.rowcount
+
                 reconciled_jobs = 0
                 if affected_job_ids:
                     cur.execute(
@@ -254,6 +263,7 @@ class DirectDbClient:
                     "deleted_sources": len(deleted_rows),
                     "deleted_jobs": deleted_jobs,
                     "reconciled_jobs": reconciled_jobs,
+                    "deleted_seen_items": deleted_seen_items,
                 }
 
     def delete_source_job(self, source_key: str, external_id: str) -> Dict[str, int]:
@@ -340,6 +350,65 @@ class DirectDbClient:
                       updated_at = NOW()
                     """,
                     (source_key, bbs, last_seen_msgid),
+                )
+
+    def get_seen_item_ids(
+        self,
+        source_key: str,
+        bbs: int,
+        item_ids: List[int],
+    ) -> Set[int]:
+        if not item_ids:
+            return set()
+        external_ids = [str(item_id) for item_id in item_ids]
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT external_id
+                    FROM crawl_seen_items
+                    WHERE source_key = %s
+                      AND bbs = %s
+                      AND external_id = ANY(%s)
+                    UNION
+                    SELECT external_id
+                    FROM job_sources
+                    WHERE source_key = %s
+                      AND external_id = ANY(%s)
+                    """,
+                    (source_key, bbs, external_ids, source_key, external_ids),
+                )
+                seen: Set[int] = set()
+                for row in cur.fetchall():
+                    try:
+                        seen.add(int(row["external_id"]))
+                    except (TypeError, ValueError):
+                        continue
+                return seen
+
+    def mark_crawl_item_seen(
+        self,
+        source_key: str,
+        bbs: int,
+        item_id: int,
+        outcome: str,
+    ) -> None:
+        if outcome not in {"stored", "skipped"}:
+            raise ValueError("crawl seen-item outcome must be stored or skipped")
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO crawl_seen_items (
+                      source_key, bbs, external_id, outcome, first_seen_at, updated_at
+                    )
+                    VALUES (%s, %s, %s, %s, NOW(), NOW())
+                    ON CONFLICT (source_key, bbs, external_id)
+                    DO UPDATE SET
+                      outcome = EXCLUDED.outcome,
+                      updated_at = NOW()
+                    """,
+                    (source_key, bbs, str(item_id), outcome),
                 )
 
     def upsert_job(

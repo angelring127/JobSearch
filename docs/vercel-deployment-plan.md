@@ -159,6 +159,7 @@ database/migrations/005_dedupe_data_quality.sql
 database/migrations/006_multi_source_adapters.sql
 database/migrations/007_job_retention.sql
 database/migrations/008_job_title_translations.sql
+database/migrations/009_crawl_seen_items.sql
 ```
 
 Required extension:
@@ -180,6 +181,7 @@ jobs
 duplicate_candidates
 job_merge_history
 admin_audit_log
+crawl_seen_items
 ```
 
 ## Environment Variables
@@ -190,6 +192,7 @@ Set these in Vercel:
 DATABASE_URL
 CRON_SECRET
 CRAWLER_MAX_POSTS_PER_REGION
+OURVANCOUVER_MAX_POSTS_PER_REGION
 ADMIN_PASSWORD
 SESSION_SECRET
 CRAWLER_SERVICE_URL
@@ -205,6 +208,7 @@ Notes:
 - `DATABASE_URL`: Supabase PostgreSQL connection string.
 - `CRON_SECRET`: secret used to authorize cron-triggered crawler requests.
 - `CRAWLER_MAX_POSTS_PER_REGION`: conservative per-region batch size for crawler runs.
+- `OURVANCOUVER_MAX_POSTS_PER_REGION`: source-specific scheduled batch size for the high-volume Our Vancouver backlog; explicit admin-run limits still take precedence.
 - `ADMIN_PASSWORD`: single v1 admin password.
 - `SESSION_SECRET`: signing secret for the admin session cookie.
 - `CRAWLER_SERVICE_URL`: crawler service base URL for admin manual runs. Local default is `http://localhost:8001`; Vercel default can be inferred from `VERCEL_URL` and `/crawler`.

@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
+from datetime import date, datetime, timedelta
+import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -8,7 +11,6 @@ from crawler import crawl_bbs_listing, crawl_job_post
 from job_quality import curate_ourvancouver_job
 from source_parsers import (
     extract_jinzaicanada_ids,
-    extract_ourvancouver_ids,
     extract_vanchosun_ids,
     parse_jinzaicanada_job,
     parse_ourvancouver_job,
@@ -18,12 +20,16 @@ from source_parsers import (
 
 
 PUBLIC_SOURCE_REQUEST_INTERVAL = 1.0
+OURVANCOUVER_LISTING_REQUEST_INTERVAL = 0.2
+OURVANCOUVER_RETENTION_DAYS = 14
+OURVANCOUVER_MAX_LISTING_PAGES = 200
 
 
 class CrawlerAdapter(ABC):
     source_key: str
     display_name: str
     refresh_current_listing = False
+    scan_recent_window = False
 
     @abstractmethod
     def get_regions(self, db_client: Any) -> List[Dict[str, Any]]:
@@ -68,30 +74,164 @@ class JPCanadaAdapter(CrawlerAdapter):
 class OurVancouverAdapter(CrawlerAdapter):
     source_key = "ourvancouver"
     display_name = "우벤유"
+    scan_recent_window = True
     listing_url = "https://m.cafe.daum.net/ourvancouver/1xBD?"
+    listing_api_url = "https://m.cafe.daum.net/api/v1/common-articles"
     detail_url = "https://m.cafe.daum.net/ourvancouver/1xBD/{item_id}"
     detail_fetch_url = "https://cafe.daum.net/_c21_/bbs_read?grpid=hPc&fldid=1xBD&datanum={item_id}"
+
+    def __init__(
+        self,
+        today_provider: Optional[Callable[[], date]] = None,
+        max_listing_pages: int = OURVANCOUVER_MAX_LISTING_PAGES,
+        listing_request_interval: float = OURVANCOUVER_LISTING_REQUEST_INTERVAL,
+    ):
+        self.today_provider = today_provider or (
+            lambda: datetime.now(ZoneInfo("Asia/Seoul")).date()
+        )
+        self.max_listing_pages = max(1, max_listing_pages)
+        self.listing_request_interval = max(0.0, listing_request_interval)
 
     def get_regions(self, db_client: Any) -> List[Dict[str, Any]]:
         return [{"city": "Vancouver", "bbs": 1, "listing_url": self.listing_url}]
 
     def get_new_item_ids(self, region: Dict[str, Any], last_seen_id: int, client: httpx.Client) -> List[int]:
-        return extract_ourvancouver_ids(_fetch_public_html(client, region["listing_url"]), last_seen_id)
+        del last_seen_id  # Seen-item tracking, not the old page-1 cursor, filters backlog work.
+        cutoff = self.today_provider() - timedelta(days=OURVANCOUVER_RETENTION_DAYS)
+        html = _fetch_public_html(client, region["listing_url"])
+        articles = _parse_ourvancouver_listing_articles(html)
+        if not articles:
+            raise RuntimeError("Our Vancouver listing did not contain article metadata")
+
+        recent_ids: List[int] = []
+        expired_page_streak = 0
+        page = 1
+        while True:
+            recent_ids.extend(
+                article["dataid"]
+                for article in articles
+                if _ourvancouver_article_is_recent(article, cutoff)
+            )
+
+            if _ourvancouver_page_is_expired(articles, cutoff):
+                expired_page_streak += 1
+            else:
+                expired_page_streak = 0
+
+            if expired_page_streak >= 2:
+                break
+            if page >= self.max_listing_pages:
+                raise RuntimeError(
+                    "Our Vancouver listing page ceiling reached before the 14-day boundary"
+                )
+
+            after_depth = str(articles[-1].get("bbsDepth") or "").strip()
+            if not after_depth:
+                raise RuntimeError("Our Vancouver listing pagination depth is missing")
+
+            page += 1
+            response = client.get(
+                self.listing_api_url,
+                params={
+                    "grpid": "hPc",
+                    "fldid": "1xBD",
+                    "targetPage": page,
+                    "afterBbsDepth": after_depth,
+                    "pageSize": 20,
+                },
+                headers={"Referer": region["listing_url"], "Accept": "application/json"},
+            )
+            response.raise_for_status()
+            payload = response.json()
+            raw_articles = payload.get("articles") if isinstance(payload, dict) else None
+            if not isinstance(raw_articles, list):
+                raise RuntimeError("Our Vancouver listing API returned malformed articles")
+            if not raw_articles:
+                break
+            articles = _normalize_ourvancouver_api_articles(raw_articles)
+            if self.listing_request_interval:
+                time.sleep(self.listing_request_interval)
+
+        return list(dict.fromkeys(recent_ids))
 
     def fetch_item(self, item_id: int, region: Dict[str, Any], client: httpx.Client) -> Optional[Dict[str, Any]]:
         url = self.detail_url.format(item_id=item_id)
-        html = _fetch_public_html(client, url)
+        # The desktop read response contains the same title/content plus the
+        # source publication timestamp. One request avoids doubling the public
+        # source traffic for every high-volume backlog item.
+        html = _fetch_public_html(client, self.detail_fetch_url.format(item_id=item_id))
         time.sleep(PUBLIC_SOURCE_REQUEST_INTERVAL)
-        posted_at = self.fetch_posted_at(item_id, region, client)
         job = parse_ourvancouver_job(html, url, item_id)
-        if job:
-            job["posted_at"] = posted_at
         return curate_ourvancouver_job(job) if job else None
 
     def fetch_posted_at(self, item_id: int, region: Dict[str, Any], client: httpx.Client) -> Optional[str]:
         html = _fetch_public_html(client, self.detail_fetch_url.format(item_id=item_id))
         time.sleep(PUBLIC_SOURCE_REQUEST_INTERVAL)
         return parse_ourvancouver_posted_at(html)
+
+
+def _parse_ourvancouver_listing_articles(html: str) -> List[Dict[str, Any]]:
+    matches = list(re.finditer(r"\bdataid\s*:\s*(\d+)", html))
+    articles: List[Dict[str, Any]] = []
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(html)
+        block = html[match.start():end]
+        elapsed = re.search(r"\barticleElapsedTime\s*:\s*['\"]([^'\"]+)['\"]", block)
+        depth = re.search(r"\bbbsDepth\s*:\s*['\"]([^'\"]+)['\"]", block)
+        if not elapsed or not depth:
+            raise RuntimeError("Our Vancouver listing article metadata is incomplete")
+        articles.append(
+            {
+                "dataid": int(match.group(1)),
+                "articleElapsedTime": elapsed.group(1),
+                "bbsDepth": depth.group(1),
+            }
+        )
+    return articles
+
+
+def _normalize_ourvancouver_api_articles(raw_articles: List[Any]) -> List[Dict[str, Any]]:
+    articles: List[Dict[str, Any]] = []
+    for raw in raw_articles:
+        if not isinstance(raw, dict):
+            raise RuntimeError("Our Vancouver listing API returned a malformed article")
+        try:
+            item_id = int(raw["dataid"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RuntimeError("Our Vancouver listing API article ID is missing") from exc
+        depth = str(raw.get("bbsDepth") or "").strip()
+        if not depth:
+            raise RuntimeError("Our Vancouver listing API pagination depth is missing")
+        articles.append(
+            {
+                "dataid": item_id,
+                "articleElapsedTime": str(raw.get("articleElapsedTime") or "").strip(),
+                "bbsDepth": depth,
+            }
+        )
+    return articles
+
+
+def _ourvancouver_listing_date(value: str) -> Optional[date]:
+    if not re.fullmatch(r"\d{2}\.\d{2}\.\d{2}", value.strip()):
+        return None
+    try:
+        return datetime.strptime(value.strip(), "%y.%m.%d").date()
+    except ValueError:
+        return None
+
+
+def _ourvancouver_article_is_recent(article: Dict[str, Any], cutoff: date) -> bool:
+    posted_date = _ourvancouver_listing_date(str(article.get("articleElapsedTime") or ""))
+    return posted_date is None or posted_date >= cutoff
+
+
+def _ourvancouver_page_is_expired(articles: List[Dict[str, Any]], cutoff: date) -> bool:
+    dates = [
+        _ourvancouver_listing_date(str(article.get("articleElapsedTime") or ""))
+        for article in articles
+    ]
+    return bool(dates) and all(posted_date is not None and posted_date < cutoff for posted_date in dates)
 
 
 class JinzaiCanadaAdapter(CrawlerAdapter):
