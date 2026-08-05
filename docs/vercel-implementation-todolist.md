@@ -51,7 +51,7 @@ Related plan:
 | M13. Mobile Map Loading Context | `DONE` | Vancouver-first map, localized mobile region counts, and request-safe viewport loading feedback verified and independently revalidated |
 | M14. Vercel Deployment | `DONE` | Supabase secured and production deployment verified end to end with the pooled database connection |
 | M15. Production Crawl Recovery | `DONE` | Current Our Vancouver markup is accepted and the verified production replay exposes 15 deduplicated map jobs |
-| M16. Local Production Crawl | `VERIFY` | Six-hour macOS runner and localized source labels are implemented; tests, installation, production replay, and deployment remain |
+| M16. Local Production Crawl | `BLOCKED` | Code, data backfill, review, deployment, and browser/API verification passed; LaunchAgent installation awaits secure production DB URL entry in macOS Keychain |
 
 ## M1. Deployment Foundation
 
@@ -220,7 +220,7 @@ names in the selected public language.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M16-01 | M | `VERIFY` | Add and install a six-hour macOS production crawler, disable the duplicate Vercel cron, backfill missing titles locally, and localize public source labels. | Code complete; tests, LaunchAgent installation, production replay, independent review, deployment, and browser verification pending. |
+| M16-01 | M | `BLOCKED` | Add and install a six-hour macOS production crawler, disable the duplicate Vercel cron, backfill missing titles locally, and localize public source labels. | The 56 crawler tests, Python compile check, installer dry run, frontend lint/build, and independent review passed. Production deployment `dpl_AdWbGamdq4muyML4wruGvWHnzFCY` serves 25 visible jobs; all 31 representatives have four-language titles, source labels and job details were browser-verified in Korean, English, Japanese, and Chinese, both public job APIs include `source_key`, and unauthenticated crawler requests return 401. The duplicate Vercel cron is removed. Waiting only for the owner to enter `DATABASE_URL` into the open hidden Keychain prompt, after which the LaunchAgent installation and first six-hour production replay can be verified. |
 
 ## Progress Update Rules
 
