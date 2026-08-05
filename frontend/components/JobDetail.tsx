@@ -31,7 +31,7 @@ export default function JobDetail({ job, onClose, locale }: JobDetailProps) {
         ? t(locale, 'confidenceMedium')
         : t(locale, 'confidenceLow');
   const confidenceLevel = job.confidence >= 0.7 ? 'high' : job.confidence >= 0.5 ? 'medium' : 'low';
-  const sourceName = getSourceName(job);
+  const sourceName = getSourceName(job, locale);
 
   return (
     <aside className="job-detail" role="dialog" aria-modal="false" aria-labelledby={titleId}>

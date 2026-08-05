@@ -202,6 +202,33 @@ const COMPACT_CITY_LABELS: Record<Locale, Record<string, string>> = {
   zh: { canada: '加拿大全境', vancouver: '温哥华', victoria: '维多利亚', calgary: '卡尔加里', edmonton: '埃德蒙顿', winnipeg: '温尼伯', toronto: '多伦多', ottawa: '渥太华', montreal: '蒙特利尔', halifax: '哈利法克斯' },
 };
 
+const SOURCE_LABELS: Record<Locale, Record<string, string>> = {
+  ko: {
+    jpcanada: 'JP 캐나다',
+    ourvancouver: '우벤유',
+    jinzaicanada: '인재 캐나다',
+    vanchosun: '밴쿠버 조선일보',
+  },
+  en: {
+    jpcanada: 'JP Canada',
+    ourvancouver: 'Our Vancouver',
+    jinzaicanada: 'Jinzai Canada',
+    vanchosun: 'Vancouver Chosun',
+  },
+  ja: {
+    jpcanada: 'JPカナダ',
+    ourvancouver: 'アワー・バンクーバー',
+    jinzaicanada: '人材カナダ',
+    vanchosun: 'バンクーバー朝鮮日報',
+  },
+  zh: {
+    jpcanada: 'JP加拿大',
+    ourvancouver: '我们的温哥华',
+    jinzaicanada: '加拿大人才网',
+    vanchosun: '温哥华朝鲜日报',
+  },
+};
+
 export function isLocale(value: string | null): value is Locale {
   return value !== null && LOCALES.includes(value as Locale);
 }
@@ -239,7 +266,10 @@ export function getJobTitle(job: JobSource, locale: Locale): string {
   return job.title_translations?.[locale]?.trim() || job.title?.trim() || t(locale, 'untitled');
 }
 
-export function getSourceName(job: JobSource): string {
+export function getSourceName(job: JobSource, locale: Locale): string {
+  const sourceKey = job.source_key?.trim().toLowerCase();
+  if (sourceKey && SOURCE_LABELS[locale][sourceKey]) return SOURCE_LABELS[locale][sourceKey];
+
   const sourceName = job.source_name?.trim();
   if (sourceName) return sourceName;
 

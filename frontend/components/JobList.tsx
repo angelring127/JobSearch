@@ -46,7 +46,7 @@ export default function JobList({ jobs, selectedJob, onJobSelect, locale }: JobL
       <ul className="job-list__items" aria-label={t(locale, 'jobResults')}>
         {jobs.map((job) => {
           const isSelected = selectedJob?.id === job.id;
-          const sourceName = getSourceName(job);
+          const sourceName = getSourceName(job, locale);
           return (
             <li key={job.id}>
               <button

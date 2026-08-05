@@ -14,6 +14,7 @@ type JobRow = {
   lat: number | null;
   lng: number | null;
   source_url: string;
+  source_key: string;
   source_name: string;
   confidence: number;
   category: string | null;
@@ -117,6 +118,7 @@ export async function GET(request: Request) {
           COALESCE(ST_Y(j.geom::geometry), j.lat) AS lat,
           COALESCE(ST_X(j.geom::geometry), j.lng) AS lng,
           COALESCE(js.source_url, '') AS source_url,
+          COALESCE(js.source_key, '') AS source_key,
           COALESCE(js.source_name, js.source_key, '') AS source_name,
           j.confidence,
           j.category,

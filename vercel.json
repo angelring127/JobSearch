@@ -23,11 +23,5 @@
         "service": "web"
       }
     }
-  ],
-  "crons": [
-    {
-      "path": "/crawler/cron/crawl",
-      "schedule": "0 16 * * *"
-    }
   ]
 }

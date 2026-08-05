@@ -51,6 +51,7 @@ Related plan:
 | M13. Mobile Map Loading Context | `DONE` | Vancouver-first map, localized mobile region counts, and request-safe viewport loading feedback verified and independently revalidated |
 | M14. Vercel Deployment | `DONE` | Supabase secured and production deployment verified end to end with the pooled database connection |
 | M15. Production Crawl Recovery | `DONE` | Current Our Vancouver markup is accepted and the verified production replay exposes 15 deduplicated map jobs |
+| M16. Local Production Crawl | `VERIFY` | Six-hour macOS runner and localized source labels are implemented; tests, installation, production replay, and deployment remain |
 
 ## M1. Deployment Foundation
 
@@ -210,6 +211,16 @@ prevented the initial scheduled crawl from producing public map jobs.
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M15-01 | S | `DONE` | Accept current top-level Our Vancouver title markup and JavaScript-injected body fallback without weakening quality checks. | All 52 crawler tests and compile check pass; a representative live detail parses with its original publication time; independent review and remediation revalidation passed. Production deployment `dpl_Aj38GP1QPQFYNyKZDDhGT6a3X5GG` replayed after removing 100 false skip markers: the 14-day store contains 17 raw sources and 16 representatives, one verified repost pair was merged, all 16 representatives have four-language titles, and the public Vancouver APIs expose 15 map-eligible jobs with actual source dates. JPCanada was re-enabled after its upstream listing continued to time out. |
+
+## M16. Local Production Crawl and Source Localization
+
+Goal: run production ingestion from the owner's Mac every six hours so the
+local Codex Bridge can curate and translate new jobs, while showing source-site
+names in the selected public language.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M16-01 | M | `VERIFY` | Add and install a six-hour macOS production crawler, disable the duplicate Vercel cron, backfill missing titles locally, and localize public source labels. | Code complete; tests, LaunchAgent installation, production replay, independent review, deployment, and browser verification pending. |
 
 ## Progress Update Rules
 

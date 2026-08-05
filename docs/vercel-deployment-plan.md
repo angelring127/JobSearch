@@ -22,11 +22,15 @@ Browser
       -> /api/jobs/nearby
       -> Supabase PostGIS
 
-Vercel Cron
-  -> /crawler/cron/crawl
-      -> Python FastAPI crawler service
-      -> JPCanada, Our Vancouver, Jinzai Canada, and Vanchosun crawls
-      -> Supabase PostGIS
+macOS LaunchAgent (owner's Mac, every 6 hours)
+  -> production DATABASE_URL from macOS login Keychain
+  -> local Python crawler + local Codex Bridge
+  -> JPCanada, Our Vancouver, Jinzai Canada, and Vanchosun crawls
+  -> Supabase PostGIS
+
+Authenticated manual operations
+  -> /crawler/cron/crawl or /crawler/admin/run
+  -> Vercel Python crawler service
 ```
 
 ## Vercel Services
@@ -51,12 +55,6 @@ Planned root `vercel.json`:
   "rewrites": [
     { "source": "/crawler/(.*)", "destination": { "service": "crawler" } },
     { "source": "/(.*)", "destination": { "service": "web" } }
-  ],
-  "crons": [
-    {
-      "path": "/crawler/cron/crawl",
-      "schedule": "0 16 * * *"
-    }
   ]
 }
 ```
@@ -289,13 +287,14 @@ Deployment:
 - Deploy preview.
 - Verify UI, job search APIs, and crawler route.
 - Deploy production.
-- Confirm Vercel Cron logs and Supabase DB changes after a scheduled run.
+- Install and inspect the macOS LaunchAgent.
+- Confirm local crawler logs, four-language title backfill, and Supabase DB changes after a scheduled run.
 
 ## Assumptions
 
 - Python crawler logic remains in Python.
 - Public job search APIs move into Next.js.
 - No separate Render/Fly backend will be used.
-- Vercel Cron runs once per day by default for Hobby compatibility.
+- Production scheduled crawling runs from the owner's Mac every six hours so the local Codex Bridge is available; the Vercel HTTP crawler remains an authenticated manual fallback.
 - Supabase PostGIS is available for production.
 - The old FastAPI backend is retained temporarily as reference, not as a production service.

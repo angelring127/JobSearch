@@ -10,6 +10,7 @@ export interface JobSource {
   lat: number | null;
   lng: number | null;
   source_url: string;
+  source_key?: string;
   source_name?: string;
   confidence: number;
   category: string | null;
