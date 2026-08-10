@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import FilterBar from '@/components/FilterBar';
 import JobDetail from '@/components/JobDetail';
 import JobList from '@/components/JobList';
@@ -11,7 +12,6 @@ import { CITY_PRESETS } from '@/lib/city-presets';
 import {
   formatNumber,
   getCompactCityLabel,
-  getLocaleFromLanguageTags,
   isLocale,
   LANGUAGE_OPTIONS,
   LOCALE_TAGS,
@@ -30,11 +30,17 @@ type MobileView = 'list' | 'map';
 
 const VANCOUVER_PRESET = CITY_PRESETS.find((city) => city.value === 'vancouver') ?? CITY_PRESETS[0];
 
+function saveLocaleCookie(locale: Locale) {
+  const secureAttribute = window.location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `jobmap-locale=${locale}; Path=/; Max-Age=31536000; SameSite=Lax${secureAttribute}`;
+}
+
 type JobMapAppProps = {
   initialLocale: Locale;
 };
 
 export default function JobMapApp({ initialLocale }: JobMapAppProps) {
+  const router = useRouter();
   const [jobs, setJobs] = useState<JobSource[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobSource | null>(null);
   const [filters, setFilters] = useState<Filters>({});
@@ -50,12 +56,13 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
     const savedLocale = window.localStorage.getItem('jobmap-locale');
     if (isLocale(savedLocale)) {
       setLocale(savedLocale);
-      return;
-    }
+      saveLocaleCookie(savedLocale);
 
-    const browserLocale = getLocaleFromLanguageTags(navigator.languages);
-    setLocale(browserLocale);
-  }, []);
+      if (savedLocale !== initialLocale) {
+        router.refresh();
+      }
+    }
+  }, [initialLocale, router]);
 
   useEffect(() => {
     document.documentElement.lang = LOCALE_TAGS[locale];
@@ -120,7 +127,7 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
   const handleLocaleChange = useCallback((nextLocale: Locale) => {
     setLocale(nextLocale);
     window.localStorage.setItem('jobmap-locale', nextLocale);
-    document.cookie = `jobmap-locale=${nextLocale}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    saveLocaleCookie(nextLocale);
   }, []);
 
   return (
