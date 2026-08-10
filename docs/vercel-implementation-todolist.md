@@ -230,7 +230,7 @@ sources whose public delivery and access rules support responsible ingestion.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M17-01 | M | `VERIFY` | Research Canadian Korean, Japanese, and Chinese job sources; add a rate-limited Sinojobs RSS/JobPosting adapter; and document sources excluded by anti-crawling terms. | Implementation complete; crawler, live-source, frontend, migration, and independent checkpoint validation pending. |
+| M17-01 | M | `DONE` | Research Canadian Korean, Japanese, and Chinese job sources; add a rate-limited Sinojobs RSS/JobPosting adapter; and document sources excluded by anti-crawling terms. | 61 crawler tests and Python compile pass; frontend lint/build and diff checks pass; the idempotent local migration registers Sinojobs enabled; a bounded live run discovered IDs 2812/2810/2808 and parsed current Vancouver metadata. The adapter enforces the published 20-second delay after successful and failed responses, retries unseen recent failures, rejects expired/outside-Canada/ambiguous `CA` locations, and does not persist description/contact data. Independent review findings were remediated and final focused revalidation passed. |
 
 ## Progress Update Rules
 
