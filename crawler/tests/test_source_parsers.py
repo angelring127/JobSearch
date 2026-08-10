@@ -232,6 +232,34 @@ class SourceParserTests(unittest.TestCase):
             )
         )
 
+        structured_us = """
+        <script type="application/ld+json">{
+          "@type": "JobPosting", "title": "Example role",
+          "datePosted": "2026-08-01T10:00:00Z", "validThrough": "2026-09-01T23:59:59Z",
+          "description": "Job description",
+          "jobLocation": {"address": {
+            "addressLocality": "Vancouver", "addressRegion": "WA", "addressCountry": "US"
+          }}
+        }</script>
+        """
+        self.assertIsNone(
+            parse_sinojobs_job(
+                structured_us,
+                "https://example.test/vancouver-us-code",
+                4,
+                today=date(2026, 8, 10),
+            )
+        )
+
+        self.assertIsNone(
+            parse_sinojobs_job(
+                detail("Richmond, VA", "2026-09-01T23:59:59Z"),
+                "https://example.test/richmond-va",
+                5,
+                today=date(2026, 8, 10),
+            )
+        )
+
     def test_sinojobs_adapter_enforces_robots_crawl_delay(self):
         sleeps = []
         adapter = SinojobsAdapter(
@@ -248,9 +276,23 @@ class SourceParserTests(unittest.TestCase):
         client = Mock()
         client.get.return_value = response
 
-        ids = adapter.get_new_item_ids(adapter.get_regions(None)[0], 0, client)
+        ids = adapter.get_new_item_ids(adapter.get_regions(None)[0], 9999, client)
 
         self.assertEqual(ids, [2812])
+        self.assertEqual(sleeps, [SINOJOBS_REQUEST_INTERVAL])
+
+    def test_sinojobs_adapter_delays_after_failed_response(self):
+        sleeps = []
+        adapter = SinojobsAdapter(sleeper=sleeps.append)
+        response = Mock()
+        response.text = "upstream failure"
+        response.raise_for_status.side_effect = RuntimeError("503")
+        client = Mock()
+        client.get.return_value = response
+
+        with self.assertRaisesRegex(RuntimeError, "503"):
+            adapter.get_new_item_ids(adapter.get_regions(None)[0], 0, client)
+
         self.assertEqual(sleeps, [SINOJOBS_REQUEST_INTERVAL])
 
 

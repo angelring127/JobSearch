@@ -424,25 +424,63 @@ def _sinojobs_location(value: object) -> tuple[str, str]:
             continue
         address = location.get("address")
         if isinstance(address, dict):
+            country = _sinojobs_country_name(address.get("addressCountry"))
+            if country and country not in {"ca", "can", "canada"}:
+                continue
             parts = [
                 str(address.get("streetAddress") or ""),
                 str(address.get("addressLocality") or ""),
                 str(address.get("addressRegion") or ""),
-                str(address.get("addressCountry") or ""),
+                country,
             ]
             location_text = _clean_text(", ".join(part for part in parts if part))
         else:
             location_text = _clean_text(str(address or ""))
-        if re.search(
-            r"\b(?:USA|U\.S\.A\.?|United States|China|Beijing|Shanghai|New York)\b",
-            location_text,
-            re.IGNORECASE,
-        ):
-            continue
         region_hint = _canonical_region(location_text, "")
-        if region_hint:
+        if region_hint and _sinojobs_has_canadian_location(region_hint, location_text):
             return region_hint, location_text
     return "", ""
+
+
+def _sinojobs_country_name(value: object) -> str:
+    if isinstance(value, dict):
+        value = value.get("name") or value.get("value") or value.get("identifier") or ""
+    return _clean_text(str(value or "")).lower().rstrip(".")
+
+
+def _sinojobs_has_canadian_location(region_hint: str, location_text: str) -> bool:
+    normalized = _clean_text(location_text).lower().rstrip(".")
+    if normalized == region_hint.lower():
+        # The live Sinojobs JobPosting feed commonly publishes a city-only
+        # address such as "Toronto" or "Vancouver".
+        return True
+
+    qualifiers = [
+        "canada",
+        "british columbia",
+        "alberta",
+        "saskatchewan",
+        "manitoba",
+        "ontario",
+        "quebec",
+        "québec",
+        "new brunswick",
+        "nova scotia",
+        "prince edward island",
+        "newfoundland and labrador",
+        "yukon",
+        "northwest territories",
+        "nunavut",
+    ]
+    if any(qualifier in normalized for qualifier in qualifiers):
+        return True
+
+    components = {
+        component.strip().lower()
+        for component in re.split(r"[,/]", normalized)
+        if component.strip()
+    }
+    return bool(components & {"ca", "can", "bc", "ab", "sk", "mb", "on", "qc", "nb", "ns", "pe", "nl", "yt", "nt", "nu"})
 
 
 def _parse_iso_datetime(value: str) -> Optional[datetime]:

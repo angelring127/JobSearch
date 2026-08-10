@@ -226,7 +226,7 @@ const SOURCE_LABELS: Record<Locale, Record<string, string>> = {
     ourvancouver: 'アワー・バンクーバー',
     jinzaicanada: '人材カナダ',
     vanchosun: 'バンクーバー朝鮮日報',
-    sinojobs: 'Sinojobs Canada',
+    sinojobs: 'シノジョブズ・カナダ',
   },
   zh: {
     jpcanada: 'JP加拿大',

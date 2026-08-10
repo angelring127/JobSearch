@@ -282,6 +282,7 @@ class VanchosunAdapter(CrawlerAdapter):
 class SinojobsAdapter(CrawlerAdapter):
     source_key = "sinojobs"
     display_name = "Sinojobs Canada"
+    scan_recent_window = True
     feed_url = "https://en.sinojobs.ca/feed/?post_type=job_listing"
     detail_url = "https://en.sinojobs.ca/?post_type=job_listing&p={item_id}"
 
@@ -302,8 +303,9 @@ class SinojobsAdapter(CrawlerAdapter):
         return [{"city": "Canada", "bbs": 1, "listing_url": self.feed_url}]
 
     def get_new_item_ids(self, region: Dict[str, Any], last_seen_id: int, client: httpx.Client) -> List[int]:
+        del last_seen_id  # Recent-window seen-item tracking retries failures without skipping IDs.
         html = self._fetch_with_crawl_delay(client, region["listing_url"])
-        return extract_sinojobs_ids(html, last_seen_id, today=self.today_provider())
+        return extract_sinojobs_ids(html, 0, today=self.today_provider())
 
     def fetch_item(self, item_id: int, region: Dict[str, Any], client: httpx.Client) -> Optional[Dict[str, Any]]:
         del region
@@ -312,11 +314,12 @@ class SinojobsAdapter(CrawlerAdapter):
         return parse_sinojobs_job(html, url, item_id, today=self.today_provider())
 
     def _fetch_with_crawl_delay(self, client: httpx.Client, url: str) -> str:
-        html = _fetch_public_html(client, url)
-        # Sinojobs publishes Crawl-Delay: 20. Sleeping after every response also
-        # protects the RSS-to-first-detail transition on a fresh crawl.
-        self.sleeper(self.request_interval)
-        return html
+        try:
+            return _fetch_public_html(client, url)
+        finally:
+            # Sinojobs publishes Crawl-Delay: 20. Waiting after successful and
+            # failed responses protects retries and RSS-to-detail transitions.
+            self.sleeper(self.request_interval)
 
 
 def get_adapter_registry() -> Dict[str, CrawlerAdapter]:
