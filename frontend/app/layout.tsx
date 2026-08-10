@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { Noto_Sans_KR, Space_Grotesk } from 'next/font/google'
+import { LOCALE_TAGS, t } from '@/lib/i18n'
+import { getRequestLocale } from '@/lib/server/request-locale'
 import './globals.css'
 
 const notoSansKr = Noto_Sans_KR({
@@ -15,20 +17,25 @@ const spaceGrotesk = Space_Grotesk({
   display: 'swap',
 })
 
-export const metadata: Metadata = {
-  title: 'JobMap',
-  description: '캐나다 구인정보 지도 기반 탐색 서비스',
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getRequestLocale()
+
+  return {
+    title: t(locale, 'metaTitle'),
+    description: t(locale, 'metaDescription'),
+  }
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const locale = await getRequestLocale()
+
   return (
-    <html lang="ko" className={`${notoSansKr.variable} ${spaceGrotesk.variable}`}>
+    <html lang={LOCALE_TAGS[locale]} className={`${notoSansKr.variable} ${spaceGrotesk.variable}`}>
       <body>{children}</body>
     </html>
   )
 }
-

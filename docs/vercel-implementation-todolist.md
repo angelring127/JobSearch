@@ -147,6 +147,7 @@ Goal: let public users browse JobMap in Korean, English, Japanese, or Simplified
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M8-01 | M | `DONE` | Add a persistent four-language selector, localize the public map/search/list/detail UI, show a posting-date row on every job card, and serve crawler-generated title translations with original-title fallback. | Frontend lint/build, 26 Python tests and compile, idempotent local migration, viewport/nearby API checks, 20/20 local title translations, and KO/EN/JA/ZH desktop/mobile browser flows passed; console errors 0. |
+| M8-02 | S | `DONE` | Default the public UI to the device/browser language on first visit, fall back to English for unsupported languages, and keep an explicit language selection across visits. | Frontend lint/build and diff check passed; request checks verified localized HTML language, metadata, and first-screen copy for KO/EN/JA/ZH, English fallback for unsupported languages, quality-weight ordering, and saved-cookie priority. Playwright verified manual Japanese selection survives reload in UI, title, HTML language, local storage, and cookie with 0 console errors. |
 
 ## M9. Public Map Context
 

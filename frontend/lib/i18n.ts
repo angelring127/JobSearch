@@ -20,6 +20,7 @@ export const LOCALE_TAGS: Record<Locale, string> = {
 
 const ko = {
   metaTitle: 'JobMap | 캐나다 일자리 지도',
+  metaDescription: '캐나다 구인정보를 지도에서 지역별로 탐색하세요.',
   language: '언어',
   home: 'JobMap 홈',
   allCanada: '캐나다 전역',
@@ -105,7 +106,8 @@ const ko = {
 type MessageKey = keyof typeof ko;
 
 const en: Record<MessageKey, string> = {
-  metaTitle: 'JobMap | Canada jobs on a map', language: 'Language', home: 'JobMap home',
+  metaTitle: 'JobMap | Canada jobs on a map', metaDescription: 'Explore Canadian job postings by location on a map.',
+  language: 'Language', home: 'JobMap home',
   allCanada: 'Across Canada', postings: ' postings', discoveryPanel: 'Job search and results', mapPanel: 'Job map',
   heroEyebrow: 'Canada job discovery', heroTitle: 'Find jobs near you on the map.',
   heroDescription: 'Search a place or move the map to see jobs in the current view.', viewMode: 'View mode', list: 'List', map: 'Map',
@@ -134,7 +136,8 @@ const en: Record<MessageKey, string> = {
 };
 
 const ja: Record<MessageKey, string> = {
-  metaTitle: 'JobMap | カナダ求人マップ', language: '言語', home: 'JobMap ホーム', allCanada: 'カナダ全土', postings: '件の求人',
+  metaTitle: 'JobMap | カナダ求人マップ', metaDescription: 'カナダの求人情報を地域別に地図で探せます。',
+  language: '言語', home: 'JobMap ホーム', allCanada: 'カナダ全土', postings: '件の求人',
   discoveryPanel: '求人検索と一覧', mapPanel: '求人マップ', heroEyebrow: 'カナダの求人を探す', heroTitle: '地図で近くの求人を探しましょう。',
   heroDescription: '地域を検索するか地図を動かすと、表示範囲の求人がすぐに表示されます。', viewMode: '表示方法', list: '一覧', map: '地図',
   cityQuick: '主要都市へ移動', chooseCity: '都市を選択', jobsUnit: '件', cityCountError: '求人数を読み込めませんでした。',
@@ -162,7 +165,8 @@ const ja: Record<MessageKey, string> = {
 };
 
 const zh: Record<MessageKey, string> = {
-  metaTitle: 'JobMap | 加拿大职位地图', language: '语言', home: 'JobMap 首页', allCanada: '加拿大境内', postings: '个职位',
+  metaTitle: 'JobMap | 加拿大职位地图', metaDescription: '在地图上按地区探索加拿大职位信息。',
+  language: '语言', home: 'JobMap 首页', allCanada: '加拿大境内', postings: '个职位',
   discoveryPanel: '职位搜索和列表', mapPanel: '职位地图', heroEyebrow: '探索加拿大职位', heroTitle: '在地图上寻找附近的职位。',
   heroDescription: '搜索地点或移动地图，即可查看当前区域内的职位。', viewMode: '查看方式', list: '列表', map: '地图',
   cityQuick: '快速前往主要城市', chooseCity: '选择城市', jobsUnit: '个', cityCountError: '无法加载职位数量。',
@@ -231,6 +235,46 @@ const SOURCE_LABELS: Record<Locale, Record<string, string>> = {
 
 export function isLocale(value: string | null): value is Locale {
   return value !== null && LOCALES.includes(value as Locale);
+}
+
+export function getLocaleFromLanguageTags(
+  languageTags: readonly string[],
+  fallback: Locale = 'en',
+): Locale {
+  for (const languageTag of languageTags) {
+    const language = languageTag.trim().toLowerCase().split(/[-_]/, 1)[0];
+    if (isLocale(language)) return language;
+  }
+
+  return fallback;
+}
+
+export function getLocaleFromAcceptLanguage(
+  acceptLanguage: string | null,
+  fallback: Locale = 'en',
+): Locale {
+  if (!acceptLanguage) return fallback;
+
+  const languageTags = acceptLanguage
+    .split(',')
+    .map((entry, index) => {
+      const [languageTag, ...parameters] = entry.trim().split(';');
+      const qualityParameter = parameters.find((parameter) => parameter.trim().startsWith('q='));
+      const quality = qualityParameter
+        ? Number.parseFloat(qualityParameter.trim().slice(2))
+        : 1;
+
+      return {
+        languageTag,
+        quality: Number.isFinite(quality) ? quality : 0,
+        index,
+      };
+    })
+    .filter(({ languageTag, quality }) => languageTag !== '*' && quality > 0)
+    .sort((left, right) => right.quality - left.quality || left.index - right.index)
+    .map(({ languageTag }) => languageTag);
+
+  return getLocaleFromLanguageTags(languageTags, fallback);
 }
 
 export function t(locale: Locale, key: MessageKey): string {
