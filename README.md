@@ -86,7 +86,7 @@ Vercel 배포는 루트 `vercel.json`의 Services 구성을 기준으로 합니�
 
 Vercel Project Settings의 Framework Preset은 `Services`로 설정하세요. 필요한 환경 변수는 `DATABASE_URL`, `CRON_SECRET`, `CRAWLER_MAX_POSTS_PER_REGION`, `OURVANCOUVER_MAX_POSTS_PER_REGION`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `CRAWLER_SERVICE_URL`입니다. `OURVANCOUVER_MAX_POSTS_PER_REGION`은 14일 분량의 우벤유 누락 공고를 새 글 우선의 제한된 배치로 보충할 때 사용하며 기본값은 100입니다. 우벤유의 애매한 게시글 판정과 한국어·영어·일본어·중국어 구인 제목 번역에는 서버 전용 `CODEX_BRIDGE_BASE_URL`, `CODEX_BRIDGE_API_KEY`, `CODEX_BRIDGE_MODEL`을 사용합니다. Bridge가 없거나 일시적으로 실패해도 크롤링은 계속되고 원문 제목이 표시됩니다.
 
-이 Mac에서 운영 크롤러를 6시간마다 실행하려면 다음 설치기를 실행합니다. 설치기는 운영 `DATABASE_URL`을 macOS 로그인 키체인에서 읽으므로 DB 비밀번호를 저장소나 평문 설정 파일에 복사하지 않습니다. Mac이 켜져 있고 네트워크와 로컬 Codex Bridge를 사용할 수 있어야 합니다.
+이 Mac에서 운영 크롤러를 6시간마다 실행하려면 다음 설치기를 실행합니다. 설치기는 운영 `DATABASE_URL`과 로컬 Codex Bridge 연결 정보를 macOS 로그인 키체인에서 읽으므로 비밀값을 저장소나 평문 설정 파일에 복사하지 않습니다. 또한 macOS가 백그라운드 프로세스의 `Documents` 접근을 막아도 실행되도록 필요한 런타임만 `~/Library/Application Support/JobMap/runtime`에 설치합니다. 소스나 의존성을 변경한 뒤에는 설치기를 다시 실행해 런타임을 갱신해야 합니다. Mac이 켜져 있고 네트워크와 로컬 Codex Bridge를 사용할 수 있어야 합니다.
 
 ```bash
 ./crawler/install_macos_schedule.command

@@ -24,7 +24,8 @@ Browser
 
 macOS LaunchAgent (owner's Mac, every 6 hours)
   -> production DATABASE_URL from macOS login Keychain
-  -> local Python crawler + local Codex Bridge
+  -> installed runtime in ~/Library/Application Support/JobMap
+  -> local Python crawler + local Codex Bridge credentials from login Keychain
   -> JPCanada, Our Vancouver, Jinzai Canada, and Vanchosun crawls
   -> Supabase PostGIS
 
@@ -296,5 +297,6 @@ Deployment:
 - Public job search APIs move into Next.js.
 - No separate Render/Fly backend will be used.
 - Production scheduled crawling runs from the owner's Mac every six hours so the local Codex Bridge is available; the Vercel HTTP crawler remains an authenticated manual fallback.
+- The LaunchAgent runs an installed copy under the user's Library instead of the source checkout under `Documents`, avoiding a Full Disk Access requirement for background execution.
 - Supabase PostGIS is available for production.
 - The old FastAPI backend is retained temporarily as reference, not as a production service.

@@ -51,7 +51,7 @@ Related plan:
 | M13. Mobile Map Loading Context | `DONE` | Vancouver-first map, localized mobile region counts, and request-safe viewport loading feedback verified and independently revalidated |
 | M14. Vercel Deployment | `DONE` | Supabase secured and production deployment verified end to end with the pooled database connection |
 | M15. Production Crawl Recovery | `DONE` | Current Our Vancouver markup is accepted and the verified production replay exposes 15 deduplicated map jobs |
-| M16. Local Production Crawl | `BLOCKED` | Code, data backfill, review, deployment, and browser/API verification passed; LaunchAgent installation awaits secure production DB URL entry in macOS Keychain |
+| M16. Local Production Crawl | `VERIFY` | Keychain-backed Library runtime completed a real production crawl; final independent review is in progress |
 
 ## M1. Deployment Foundation
 
@@ -220,7 +220,7 @@ names in the selected public language.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M16-01 | M | `BLOCKED` | Add and install a six-hour macOS production crawler, disable the duplicate Vercel cron, backfill missing titles locally, and localize public source labels. | The 56 crawler tests, Python compile check, installer dry run, frontend lint/build, and independent review passed. Production deployment `dpl_AdWbGamdq4muyML4wruGvWHnzFCY` serves 25 visible jobs; all 31 representatives have four-language titles, source labels and job details were browser-verified in Korean, English, Japanese, and Chinese, both public job APIs include `source_key`, and unauthenticated crawler requests return 401. The duplicate Vercel cron is removed. Waiting only for the owner to enter `DATABASE_URL` into the open hidden Keychain prompt, after which the LaunchAgent installation and first six-hour production replay can be verified. |
+| M16-01 | M | `VERIFY` | Add and install a six-hour macOS production crawler, disable the duplicate Vercel cron, backfill missing titles locally, and localize public source labels. | SearchingJob DB password was reset and synchronized to Keychain plus Vercel Production/Preview without committing it. Production deployment `dpl_EAP9ndujEVCiMU6kG7NW5LAAQJBH` serves the custom domain; home, city counts, viewport, and nearby return 200 while unauthenticated crawler access returns 401. The Library LaunchAgent reports a 21600-second interval and its first completed replay exited 0: Our Vancouver, Vanchosun, and Jinzai Canada succeeded, JPCanada was isolated as a remote-source failure, 8 new source rows were stored, 40 jobs are publicly visible, and all 41 titled representatives have four-language translations. The 56 crawler tests, Python compile check, installer dry run and active-run guard, frontend lint/build, shell syntax, and diff checks pass. Awaiting final independent review. |
 
 ## Progress Update Rules
 
