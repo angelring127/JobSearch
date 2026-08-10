@@ -223,6 +223,15 @@ names in the selected public language.
 | --- | --- | --- | --- | --- |
 | M16-01 | M | `DONE` | Add and install a six-hour macOS production crawler, disable the duplicate Vercel cron, backfill missing titles locally, and localize public source labels. | SearchingJob DB password was reset and synchronized to Keychain plus Vercel Production/Preview without committing it. Production deployment `dpl_EAP9ndujEVCiMU6kG7NW5LAAQJBH` serves the custom domain; home, city counts, viewport, and nearby return 200 while unauthenticated crawler access returns 401. The Library LaunchAgent reports a 21600-second interval and its first completed replay exited 0: Our Vancouver, Vanchosun, and Jinzai Canada succeeded, JPCanada was isolated as a remote-source failure, 8 new source rows were stored, 40 jobs are publicly visible, and all 41 titled representatives have four-language translations. The 56 crawler tests, Python compile check, installer dry run and active-run guard, frontend lint/build, shell syntax, and diff checks pass. Independent review found no Critical/High/Medium defects; two actionable Low findings were fixed and focused revalidation passed. |
 
+## M17. Canadian Community Source Expansion
+
+Goal: extend Korean, Japanese, and Chinese community-job coverage using only
+sources whose public delivery and access rules support responsible ingestion.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M17-01 | M | `VERIFY` | Research Canadian Korean, Japanese, and Chinese job sources; add a rate-limited Sinojobs RSS/JobPosting adapter; and document sources excluded by anti-crawling terms. | Implementation complete; crawler, live-source, frontend, migration, and independent checkpoint validation pending. |
+
 ## Progress Update Rules
 
 During implementation, keep this document current:

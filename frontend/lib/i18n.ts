@@ -212,24 +212,28 @@ const SOURCE_LABELS: Record<Locale, Record<string, string>> = {
     ourvancouver: '우벤유',
     jinzaicanada: '인재 캐나다',
     vanchosun: '밴쿠버 조선일보',
+    sinojobs: '시노잡스 캐나다',
   },
   en: {
     jpcanada: 'JP Canada',
     ourvancouver: 'Our Vancouver',
     jinzaicanada: 'Jinzai Canada',
     vanchosun: 'Vancouver Chosun',
+    sinojobs: 'Sinojobs Canada',
   },
   ja: {
     jpcanada: 'JPカナダ',
     ourvancouver: 'アワー・バンクーバー',
     jinzaicanada: '人材カナダ',
     vanchosun: 'バンクーバー朝鮮日報',
+    sinojobs: 'Sinojobs Canada',
   },
   zh: {
     jpcanada: 'JP加拿大',
     ourvancouver: '我们的温哥华',
     jinzaicanada: '加拿大人才网',
     vanchosun: '温哥华朝鲜日报',
+    sinojobs: '加华招聘',
   },
 };
 

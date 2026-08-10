@@ -1,13 +1,17 @@
 import unittest
+from datetime import date
+from unittest.mock import Mock
 
-from adapters import get_adapter_registry
+from adapters import SINOJOBS_REQUEST_INTERVAL, SinojobsAdapter, get_adapter_registry
 from crawler import parse_category
 from source_parsers import (
     extract_jinzaicanada_ids,
     extract_ourvancouver_ids,
+    extract_sinojobs_ids,
     extract_vanchosun_ids,
     parse_jinzaicanada_job,
     parse_ourvancouver_job,
+    parse_sinojobs_job,
     parse_vanchosun_job,
 )
 
@@ -16,7 +20,7 @@ class SourceParserTests(unittest.TestCase):
     def test_registry_contains_all_public_sources(self):
         self.assertEqual(
             set(get_adapter_registry()),
-            {"jpcanada", "ourvancouver", "jinzaicanada", "vanchosun"},
+            {"jpcanada", "ourvancouver", "jinzaicanada", "vanchosun", "sinojobs"},
         )
 
     def test_ourvancouver_listing_and_detail(self):
@@ -144,6 +148,110 @@ class SourceParserTests(unittest.TestCase):
     def test_multilingual_categories(self):
         self.assertEqual(parse_category("주방 직원", ""), "restaurant")
         self.assertEqual(parse_category("물류 배송 담당자", ""), "warehouse")
+        self.assertEqual(parse_category("餐厅服务员", ""), "restaurant")
+        self.assertEqual(parse_category("仓库物流专员", ""), "warehouse")
+
+    def test_sinojobs_feed_keeps_only_recent_new_ids(self):
+        feed = """<br /><b>Warning</b>: legacy PHP warning
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss xmlns:wp="com-wordpress:feed-additions:1"><channel>
+          <item><pubDate>Sun, 09 Aug 2026 10:00:00 +0000</pubDate><wp:post-id>2812</wp:post-id></item>
+          <item><pubDate>Sat, 08 Aug 2026 10:00:00 +0000</pubDate><wp:post-id>2810</wp:post-id></item>
+          <item><pubDate>Sat, 08 Aug 2026 10:00:00 +0000</pubDate><wp:post-id>2810</wp:post-id></item>
+          <item><pubDate>Wed, 01 Jul 2026 10:00:00 +0000</pubDate><wp:post-id>2700</wp:post-id></item>
+        </channel></rss>
+        """
+        self.assertEqual(
+            extract_sinojobs_ids(feed, 2810, today=date(2026, 8, 10)),
+            [2812],
+        )
+
+    def test_sinojobs_parses_public_jobposting_metadata(self):
+        detail = """
+        <html><head>
+          <link rel="canonical" href="https://en.sinojobs.ca/job/example-warehouse-role/" />
+          <script type="application/ld+json">{
+            "@context": "https://schema.org", "@type": "JobPosting",
+            "datePosted": "2026-08-09T10:30:00-04:00",
+            "validThrough": "2026-09-30T23:59:59-04:00",
+            "title": "仓库物流专员",
+            "description": "&lt;p&gt;Pay: CA$25 - CA$27 per hour&lt;/p&gt;",
+            "jobLocation": {"@type": "Place", "address": "Mississauga, Ontario, Canada"},
+            "industry": "Warehouse and logistics"
+          }</script>
+        </head></html>
+        """
+        job = parse_sinojobs_job(
+            detail,
+            "https://en.sinojobs.ca/?post_type=job_listing&p=2812",
+            2812,
+            today=date(2026, 8, 10),
+        )
+        self.assertIsNotNone(job)
+        self.assertEqual(job["source_url"], "https://en.sinojobs.ca/job/example-warehouse-role/")
+        self.assertEqual(job["region_hint"], "Mississauga")
+        self.assertEqual(job["location_text"], "Mississauga, Ontario, Canada")
+        self.assertEqual(job["wage_min"], 25)
+        self.assertEqual(job["wage_max"], 27)
+        self.assertEqual(job["category"], "warehouse")
+        self.assertEqual(job["posted_at"], "2026-08-09T14:30:00")
+        self.assertNotIn("_content", job)
+
+    def test_sinojobs_rejects_expired_or_non_canadian_location(self):
+        def detail(location: str, expiry: str) -> str:
+            return f"""
+            <script type="application/ld+json">{{
+              "@type": "JobPosting", "title": "Example role",
+              "datePosted": "2026-08-01T10:00:00Z", "validThrough": "{expiry}",
+              "description": "Job description", "jobLocation": {{"address": "{location}"}}
+            }}</script>
+            """
+
+        self.assertIsNone(
+            parse_sinojobs_job(
+                detail("Toronto", "2026-08-09T23:59:59Z"),
+                "https://example.test/expired",
+                1,
+                today=date(2026, 8, 10),
+            )
+        )
+        self.assertIsNone(
+            parse_sinojobs_job(
+                detail("New York, USA", "2026-09-01T23:59:59Z"),
+                "https://example.test/usa",
+                2,
+                today=date(2026, 8, 10),
+            )
+        )
+        self.assertIsNone(
+            parse_sinojobs_job(
+                detail("Vancouver, Washington, United States", "2026-09-01T23:59:59Z"),
+                "https://example.test/vancouver-usa",
+                3,
+                today=date(2026, 8, 10),
+            )
+        )
+
+    def test_sinojobs_adapter_enforces_robots_crawl_delay(self):
+        sleeps = []
+        adapter = SinojobsAdapter(
+            today_provider=lambda: date(2026, 8, 10),
+            sleeper=sleeps.append,
+        )
+        response = Mock()
+        response.text = """
+        <rss xmlns:wp="com-wordpress:feed-additions:1"><channel><item>
+          <pubDate>Sun, 09 Aug 2026 10:00:00 +0000</pubDate><wp:post-id>2812</wp:post-id>
+        </item></channel></rss>
+        """
+        response.raise_for_status.return_value = None
+        client = Mock()
+        client.get.return_value = response
+
+        ids = adapter.get_new_item_ids(adapter.get_regions(None)[0], 0, client)
+
+        self.assertEqual(ids, [2812])
+        self.assertEqual(sleeps, [SINOJOBS_REQUEST_INTERVAL])
 
 
 if __name__ == "__main__":

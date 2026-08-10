@@ -11,15 +11,18 @@ from crawler import crawl_bbs_listing, crawl_job_post
 from job_quality import curate_ourvancouver_job
 from source_parsers import (
     extract_jinzaicanada_ids,
+    extract_sinojobs_ids,
     extract_vanchosun_ids,
     parse_jinzaicanada_job,
     parse_ourvancouver_job,
     parse_ourvancouver_posted_at,
+    parse_sinojobs_job,
     parse_vanchosun_job,
 )
 
 
 PUBLIC_SOURCE_REQUEST_INTERVAL = 1.0
+SINOJOBS_REQUEST_INTERVAL = 20.0
 OURVANCOUVER_LISTING_REQUEST_INTERVAL = 0.2
 OURVANCOUVER_RETENTION_DAYS = 14
 OURVANCOUVER_MAX_LISTING_PAGES = 200
@@ -276,11 +279,52 @@ class VanchosunAdapter(CrawlerAdapter):
         return parse_vanchosun_job(html, url, item_id)
 
 
+class SinojobsAdapter(CrawlerAdapter):
+    source_key = "sinojobs"
+    display_name = "Sinojobs Canada"
+    feed_url = "https://en.sinojobs.ca/feed/?post_type=job_listing"
+    detail_url = "https://en.sinojobs.ca/?post_type=job_listing&p={item_id}"
+
+    def __init__(
+        self,
+        today_provider: Optional[Callable[[], date]] = None,
+        request_interval: float = SINOJOBS_REQUEST_INTERVAL,
+        sleeper: Callable[[float], None] = time.sleep,
+    ):
+        self.today_provider = today_provider or (
+            lambda: datetime.now(ZoneInfo("America/Toronto")).date()
+        )
+        self.request_interval = max(SINOJOBS_REQUEST_INTERVAL, request_interval)
+        self.sleeper = sleeper
+
+    def get_regions(self, db_client: Any) -> List[Dict[str, Any]]:
+        del db_client
+        return [{"city": "Canada", "bbs": 1, "listing_url": self.feed_url}]
+
+    def get_new_item_ids(self, region: Dict[str, Any], last_seen_id: int, client: httpx.Client) -> List[int]:
+        html = self._fetch_with_crawl_delay(client, region["listing_url"])
+        return extract_sinojobs_ids(html, last_seen_id, today=self.today_provider())
+
+    def fetch_item(self, item_id: int, region: Dict[str, Any], client: httpx.Client) -> Optional[Dict[str, Any]]:
+        del region
+        url = self.detail_url.format(item_id=item_id)
+        html = self._fetch_with_crawl_delay(client, url)
+        return parse_sinojobs_job(html, url, item_id, today=self.today_provider())
+
+    def _fetch_with_crawl_delay(self, client: httpx.Client, url: str) -> str:
+        html = _fetch_public_html(client, url)
+        # Sinojobs publishes Crawl-Delay: 20. Sleeping after every response also
+        # protects the RSS-to-first-detail transition on a fresh crawl.
+        self.sleeper(self.request_interval)
+        return html
+
+
 def get_adapter_registry() -> Dict[str, CrawlerAdapter]:
     adapters = [
         JPCanadaAdapter(),
         OurVancouverAdapter(),
         JinzaiCanadaAdapter(),
         VanchosunAdapter(),
+        SinojobsAdapter(),
     ]
     return {adapter.source_key: adapter for adapter in adapters}

@@ -36,7 +36,7 @@ def parse_wage(text: str) -> tuple:
     normalized = re.sub(r'\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b', ' ', normalized)
 
     candidate_patterns = [
-        r'(?:\$|cad\s*\$?)\s*(\d{1,3}(?:\.\d{1,2})?)\s*(?:[-~〜–]\s*(?:\$|cad\s*\$?)?\s*(\d{1,3}(?:\.\d{1,2})?))?',
+        r'(?:\$|ca(?:d)?\s*\$?)\s*(\d{1,3}(?:\.\d{1,2})?)\s*(?:[-~〜–]\s*(?:\$|ca(?:d)?\s*\$?)?\s*(\d{1,3}(?:\.\d{1,2})?))?',
         r'(?:時給|hourly|wage|pay|給料|賃金|hour|hr|per\s+hour)\D{0,20}(\d{1,3}(?:\.\d{1,2})?)\s*(?:[-~〜–]\s*(\d{1,3}(?:\.\d{1,2})?))?',
         r'(\d{1,3}(?:\.\d{1,2})?)\s*(?:/h|/hr|/hour|ドル\s*/?\s*時|円\s*/?\s*時)',
     ]
@@ -73,17 +73,17 @@ def parse_category(title: str, description: str = "") -> Optional[str]:
     """
     text = (title + " " + description).lower()
     
-    if any(word in text for word in ['restaurant', 'cafe', 'kitchen', 'server', 'waiter', 'cook', 'chef', '레스토랑', '식당', '카페', '주방', '서버', '스시', '요리', '厨房', 'サーバー', 'レストラン', '調理']):
+    if any(word in text for word in ['restaurant', 'cafe', 'kitchen', 'server', 'waiter', 'cook', 'chef', '레스토랑', '식당', '카페', '주방', '서버', '스시', '요리', '厨房', '餐厅', '咖啡', '服务员', '厨师', 'サーバー', 'レストラン', '調理']):
         return 'restaurant'
-    elif any(word in text for word in ['retail', 'store', 'shop', 'sales', 'cashier', '판매', '매장', '캐시어', '소매', '販売', 'レジ']):
+    elif any(word in text for word in ['retail', 'store', 'shop', 'sales', 'cashier', '판매', '매장', '캐시어', '소매', '零售', '商店', '销售', '收银员', '販売', 'レジ']):
         return 'retail'
-    elif any(word in text for word in ['hotel', 'hospitality', 'front desk', 'reception', '호텔', '관광', '리셉션', 'ホテル', '観光', '受付']):
+    elif any(word in text for word in ['hotel', 'hospitality', 'front desk', 'reception', '호텔', '관광', '리셉션', '酒店', '旅游', '前台', 'ホテル', '観光', '受付']):
         return 'hospitality'
-    elif any(word in text for word in ['warehouse', 'logistics', 'forklift', '창고', '물류', '배송', '배달', '倉庫', '物流', '配送']):
+    elif any(word in text for word in ['warehouse', 'logistics', 'forklift', '창고', '물류', '배송', '배달', '仓库', '物流', '配送', '倉庫']):
         return 'warehouse'
-    elif any(word in text for word in ['construction', 'laborer', 'carpenter', '건설', '목수', '공사', '建設']):
+    elif any(word in text for word in ['construction', 'laborer', 'carpenter', '건설', '목수', '공사', '建筑', '木工', '建設']):
         return 'construction'
-    elif any(word in text for word in ['cleaning', 'cleaner', 'janitor', 'housekeeping', '청소', '클리너', '하우스키핑', '清掃']):
+    elif any(word in text for word in ['cleaning', 'cleaner', 'janitor', 'housekeeping', '청소', '클리너', '하우스키핑', '清洁', '清掃']):
         return 'cleaning'
     else:
         return 'other'

@@ -1,5 +1,8 @@
+import html as html_lib
+import json
 import re
-from datetime import datetime
+from datetime import date, datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from typing import Dict, List, Optional
 
 from bs4 import BeautifulSoup
@@ -109,6 +112,17 @@ def _canonical_region(value: str, default: str) -> str:
         ("halifax", "Halifax"),
         ("켈로나", "Kelowna"),
         ("kelowna", "Kelowna"),
+        ("미시사가", "Mississauga"),
+        ("mississauga", "Mississauga"),
+        ("마컴", "Markham"),
+        ("markham", "Markham"),
+        ("오크빌", "Oakville"),
+        ("oakville", "Oakville"),
+        ("vaughan", "Vaughan"),
+        ("레지나", "Regina"),
+        ("regina", "Regina"),
+        ("새스커툰", "Saskatoon"),
+        ("saskatoon", "Saskatoon"),
     ]
     for alias, canonical in aliases:
         if alias in normalized:
@@ -307,6 +321,140 @@ def parse_vanchosun_job(html: str, source_url: str, item_id: int) -> Optional[Di
         "location_kind": "street_address" if location_text else "none",
         "posted_at": _posted_at(detail_text, [r"등록일\s*:\s*(\d{4}-\d{2}-\d{2})"]),
     }
+
+
+def extract_sinojobs_ids(
+    feed_xml: str,
+    last_seen_id: int,
+    today: Optional[date] = None,
+    retention_days: int = 14,
+) -> List[int]:
+    cutoff = (today or datetime.now(timezone.utc).date()) - timedelta(days=retention_days)
+    # The current WordPress host emits a PHP warning before its XML declaration.
+    # Ignore only that non-feed prefix and keep parsing the official RSS body.
+    xml_start = feed_xml.find("<?xml")
+    if xml_start >= 0:
+        feed_xml = feed_xml[xml_start:]
+    soup = BeautifulSoup(feed_xml, "xml")
+    ids: List[int] = []
+    for item in soup.find_all("item"):
+        post_id_node = item.find("post-id")
+        if not post_id_node:
+            guid = _clean_text(item.guid.get_text(" ", strip=True) if item.guid else "")
+            match = re.search(r"[?&](?:amp;)?p=(\d+)", guid)
+            item_id = int(match.group(1)) if match else None
+        else:
+            try:
+                item_id = int(post_id_node.get_text(strip=True))
+            except ValueError:
+                item_id = None
+
+        published = _clean_text(item.pubDate.get_text(" ", strip=True) if item.pubDate else "")
+        try:
+            published_date = parsedate_to_datetime(published).date()
+        except (TypeError, ValueError, OverflowError):
+            published_date = None
+
+        if item_id is not None and published_date is not None and published_date >= cutoff:
+            ids.append(item_id)
+    return _ordered_unique_ids(ids, last_seen_id)
+
+
+def parse_sinojobs_job(
+    html: str,
+    source_url: str,
+    item_id: int,
+    today: Optional[date] = None,
+) -> Optional[Dict]:
+    soup = BeautifulSoup(html, "lxml")
+    posting = _sinojobs_job_posting(soup)
+    if not posting:
+        return None
+
+    title = _clean_text(str(posting.get("title") or ""))
+    region_hint, location_text = _sinojobs_location(posting.get("jobLocation"))
+    if not title or not region_hint or not location_text:
+        return None
+
+    valid_through = _parse_iso_datetime(str(posting.get("validThrough") or ""))
+    if valid_through and valid_through.date() < (today or datetime.now(timezone.utc).date()):
+        return None
+
+    description_html = html_lib.unescape(str(posting.get("description") or ""))
+    description = _clean_text(BeautifulSoup(description_html, "lxml").get_text(" ", strip=True))
+    industry = _clean_text(html_lib.unescape(str(posting.get("industry") or "")))
+    wage_min, wage_max = parse_wage(description)
+    posted_at = _parse_iso_datetime(str(posting.get("datePosted") or ""))
+
+    canonical_node = soup.select_one('link[rel="canonical"][href]')
+    canonical_url = str(canonical_node.get("href", "")) if canonical_node else ""
+    if not canonical_url.startswith("https://en.sinojobs.ca/job/"):
+        canonical_url = source_url
+
+    return {
+        "msgid": item_id,
+        "source_url": canonical_url,
+        "title": title,
+        "wage_min": wage_min,
+        "wage_max": wage_max,
+        "category": parse_category(title, "%s %s" % (industry, description)),
+        "region_hint": region_hint,
+        "location_text": location_text,
+        "posted_at": posted_at.isoformat() if posted_at else None,
+    }
+
+
+def _sinojobs_job_posting(soup: BeautifulSoup) -> Optional[Dict]:
+    for script in soup.select('script[type="application/ld+json"]'):
+        try:
+            payload = json.loads(script.string or script.get_text() or "")
+        except (TypeError, ValueError):
+            continue
+        candidates = payload if isinstance(payload, list) else [payload]
+        for candidate in candidates:
+            if isinstance(candidate, dict) and candidate.get("@type") == "JobPosting":
+                return candidate
+    return None
+
+
+def _sinojobs_location(value: object) -> tuple[str, str]:
+    locations = value if isinstance(value, list) else [value]
+    for location in locations:
+        if not isinstance(location, dict):
+            continue
+        address = location.get("address")
+        if isinstance(address, dict):
+            parts = [
+                str(address.get("streetAddress") or ""),
+                str(address.get("addressLocality") or ""),
+                str(address.get("addressRegion") or ""),
+                str(address.get("addressCountry") or ""),
+            ]
+            location_text = _clean_text(", ".join(part for part in parts if part))
+        else:
+            location_text = _clean_text(str(address or ""))
+        if re.search(
+            r"\b(?:USA|U\.S\.A\.?|United States|China|Beijing|Shanghai|New York)\b",
+            location_text,
+            re.IGNORECASE,
+        ):
+            continue
+        region_hint = _canonical_region(location_text, "")
+        if region_hint:
+            return region_hint, location_text
+    return "", ""
+
+
+def _parse_iso_datetime(value: str) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(timezone.utc).replace(tzinfo=None)
+    return parsed
 
 
 def _is_obvious_non_job_ad(title: str) -> bool:
