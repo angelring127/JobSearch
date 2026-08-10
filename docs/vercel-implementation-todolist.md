@@ -51,7 +51,7 @@ Related plan:
 | M13. Mobile Map Loading Context | `DONE` | Vancouver-first map, localized mobile region counts, and request-safe viewport loading feedback verified and independently revalidated |
 | M14. Vercel Deployment | `DONE` | Supabase secured and production deployment verified end to end with the pooled database connection |
 | M15. Production Crawl Recovery | `DONE` | Current Our Vancouver markup is accepted and the verified production replay exposes 15 deduplicated map jobs |
-| M16. Local Production Crawl | `VERIFY` | Keychain-backed Library runtime completed a real production crawl; final independent review is in progress |
+| M16. Local Production Crawl | `DONE` | Keychain-backed Library runtime completed a real production crawl and focused independent revalidation passed |
 
 ## M1. Deployment Foundation
 
@@ -220,7 +220,7 @@ names in the selected public language.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M16-01 | M | `VERIFY` | Add and install a six-hour macOS production crawler, disable the duplicate Vercel cron, backfill missing titles locally, and localize public source labels. | SearchingJob DB password was reset and synchronized to Keychain plus Vercel Production/Preview without committing it. Production deployment `dpl_EAP9ndujEVCiMU6kG7NW5LAAQJBH` serves the custom domain; home, city counts, viewport, and nearby return 200 while unauthenticated crawler access returns 401. The Library LaunchAgent reports a 21600-second interval and its first completed replay exited 0: Our Vancouver, Vanchosun, and Jinzai Canada succeeded, JPCanada was isolated as a remote-source failure, 8 new source rows were stored, 40 jobs are publicly visible, and all 41 titled representatives have four-language translations. The 56 crawler tests, Python compile check, installer dry run and active-run guard, frontend lint/build, shell syntax, and diff checks pass. Awaiting final independent review. |
+| M16-01 | M | `DONE` | Add and install a six-hour macOS production crawler, disable the duplicate Vercel cron, backfill missing titles locally, and localize public source labels. | SearchingJob DB password was reset and synchronized to Keychain plus Vercel Production/Preview without committing it. Production deployment `dpl_EAP9ndujEVCiMU6kG7NW5LAAQJBH` serves the custom domain; home, city counts, viewport, and nearby return 200 while unauthenticated crawler access returns 401. The Library LaunchAgent reports a 21600-second interval and its first completed replay exited 0: Our Vancouver, Vanchosun, and Jinzai Canada succeeded, JPCanada was isolated as a remote-source failure, 8 new source rows were stored, 40 jobs are publicly visible, and all 41 titled representatives have four-language translations. The 56 crawler tests, Python compile check, installer dry run and active-run guard, frontend lint/build, shell syntax, and diff checks pass. Independent review found no Critical/High/Medium defects; two actionable Low findings were fixed and focused revalidation passed. |
 
 ## Progress Update Rules
 
