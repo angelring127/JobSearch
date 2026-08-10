@@ -148,15 +148,18 @@ except Exception:
 }
 
 DATABASE_URL="$(/usr/bin/security find-generic-password -a "$CURRENT_USER" -s "$KEYCHAIN_SERVICE" -w 2>/dev/null || true)"
+DATABASE_URL_VALIDATED=false
 if [[ -z "$DATABASE_URL" ]]; then
   prompt_database_url
-elif ! database_url_works "$DATABASE_URL"; then
+elif database_url_works "$DATABASE_URL"; then
+  DATABASE_URL_VALIDATED=true
+else
   echo "The production DATABASE_URL stored in macOS Keychain could not authenticate." >&2
   prompt_database_password
 fi
 
-if ! database_url_works "$DATABASE_URL"; then
-  echo "The supplied database password could not authenticate. Reset or verify it in Supabase and retry." >&2
+if [[ "$DATABASE_URL_VALIDATED" != true ]] && ! database_url_works "$DATABASE_URL"; then
+  echo "The supplied database connection could not be verified. Confirm the Supabase URL, database password, and network access, then retry." >&2
   unset DATABASE_URL
   exit 1
 fi
