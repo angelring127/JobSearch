@@ -259,6 +259,27 @@ class SourceParserTests(unittest.TestCase):
                 today=date(2026, 8, 10),
             )
         )
+        self.assertIsNone(
+            parse_sinojobs_job(
+                detail("Richmond, CA", "2026-09-01T23:59:59Z"),
+                "https://example.test/richmond-california",
+                6,
+                today=date(2026, 8, 10),
+            )
+        )
+
+        structured_canada = structured_us.replace(
+            '"addressRegion": "WA", "addressCountry": "US"',
+            '"addressRegion": "BC", "addressCountry": "CA"',
+        )
+        self.assertIsNotNone(
+            parse_sinojobs_job(
+                structured_canada,
+                "https://example.test/vancouver-canada-code",
+                7,
+                today=date(2026, 8, 10),
+            )
+        )
 
     def test_sinojobs_adapter_enforces_robots_crawl_delay(self):
         sleeps = []

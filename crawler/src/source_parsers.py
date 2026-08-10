@@ -427,6 +427,8 @@ def _sinojobs_location(value: object) -> tuple[str, str]:
             country = _sinojobs_country_name(address.get("addressCountry"))
             if country and country not in {"ca", "can", "canada"}:
                 continue
+            if country:
+                country = "canada"
             parts = [
                 str(address.get("streetAddress") or ""),
                 str(address.get("addressLocality") or ""),
@@ -480,7 +482,7 @@ def _sinojobs_has_canadian_location(region_hint: str, location_text: str) -> boo
         for component in re.split(r"[,/]", normalized)
         if component.strip()
     }
-    return bool(components & {"ca", "can", "bc", "ab", "sk", "mb", "on", "qc", "nb", "ns", "pe", "nl", "yt", "nt", "nu"})
+    return bool(components & {"can", "bc", "ab", "sk", "mb", "on", "qc", "nb", "ns", "pe", "nl", "yt", "nt", "nu"})
 
 
 def _parse_iso_datetime(value: str) -> Optional[datetime]:
