@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Analytics } from '@vercel/analytics/next'
 import { Noto_Sans_KR, Space_Grotesk } from 'next/font/google'
 import { LOCALE_TAGS, t } from '@/lib/i18n'
 import { getRequestLocale } from '@/lib/server/request-locale'
@@ -35,7 +36,10 @@ export default async function RootLayout({
 
   return (
     <html lang={LOCALE_TAGS[locale]} className={`${notoSansKr.variable} ${spaceGrotesk.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+      </body>
     </html>
   )
 }
