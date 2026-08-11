@@ -52,7 +52,7 @@ Related plan:
 | M14. Vercel Deployment | `DONE` | Supabase secured and production deployment verified end to end with the pooled database connection |
 | M15. Production Crawl Recovery | `DONE` | Current Our Vancouver markup is accepted and the verified production replay exposes 15 deduplicated map jobs |
 | M16. Local Production Crawl | `DONE` | Keychain-backed Library runtime completed a real production crawl and focused independent revalidation passed |
-| M18. Map Location Accuracy | `VERIFY` | Code complete; validating AI-assisted re-resolution, fail-closed behavior, production data repair, and public map/API results |
+| M18. Map Location Accuracy | `DONE` | AI-assisted re-resolution, fail-closed location handling, production data repair, deployment, and public map/API validation complete |
 
 ## M1. Deployment Foundation
 
@@ -241,7 +241,7 @@ content plus AI-assisted extraction.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M18-01 | M | `VERIFY` | Fix AI location precedence, require a geocodable precise address or business for public map confidence, and reprocess the nine-job Downtown Vancouver cluster. | 75 crawler tests, Python compile, frontend lint/build, and production data repair pass; initial independent review findings remediated; pending focused revalidation, deployment, and final production checks. |
+| M18-01 | M | `DONE` | Fix AI location precedence, require a geocodable precise address or business for public map confidence, and reprocess the nine-job Downtown Vancouver cluster. | 75 crawler tests, Python compile, frontend lint/build, and independent revalidation pass. Vercel production `dpl_5NMXdKDmhcUgEydVSu1NenD5uVpC` is READY; home/crawler health return 200 and unauthenticated cron returns 401. Production DB/API report zero jobs at both invalid centroids; Playwright finds no 9- or 6-job cluster and zero console errors. The six-hour LaunchAgent runtime matches source, writes with `transaction_read_only=off`, and completed runs 35-38 with exit code 0. |
 
 ## Progress Update Rules
 
