@@ -4,11 +4,11 @@ export const LOCALES = ['ko', 'en', 'ja', 'zh'] as const;
 
 export type Locale = (typeof LOCALES)[number];
 
-export const LANGUAGE_OPTIONS: ReadonlyArray<{ value: Locale; label: string }> = [
-  { value: 'ko', label: '대한민국 · 한국어' },
-  { value: 'en', label: 'Canada · English' },
-  { value: 'ja', label: '日本 · 日本語' },
-  { value: 'zh', label: '中国 · 简体中文' },
+export const LANGUAGE_OPTIONS: ReadonlyArray<{ value: Locale; country: string; language: string }> = [
+  { value: 'ko', country: '대한민국', language: '한국어' },
+  { value: 'en', country: 'Canada', language: 'English' },
+  { value: 'ja', country: '日本', language: '日本語' },
+  { value: 'zh', country: '中国', language: '简体中文' },
 ];
 
 export const LOCALE_TAGS: Record<Locale, string> = {

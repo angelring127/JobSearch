@@ -54,7 +54,7 @@ Related plan:
 | M16. Local Production Crawl | `DONE` | Keychain-backed Library runtime completed a real production crawl and focused independent revalidation passed |
 | M18. Map Location Accuracy | `DONE` | AI-assisted re-resolution, fail-closed location handling, production data repair, deployment, and public map/API validation complete |
 | M19. Vercel Web Analytics | `DONE` | Privacy-friendly pageview analytics enabled, independently reviewed, deployed, and verified on the production domain |
-| M20. Compact Language Selector | `DONE` | Compact circular vector flag selector verified across responsive widths with accessible country-labelled options |
+| M20. Compact Language Selector | `DONE` | The compact selector now uses polished circular SVG flags and an accessible menu that shows each flag with its country and language name. |
 
 ## M1. Deployment Foundation
 
@@ -261,6 +261,7 @@ Goal: reduce header width while keeping all four locales discoverable and access
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M20-01 | S | `DONE` | Show the active locale as a circular vector flag and expose country plus language names in the native dropdown. | Frontend lint/build passed. Playwright verified a 44×44px selector, all four country/language option names, keyboard focus and type-to-select, saved locale/cookie behavior, no horizontal overflow at 375/768/1440px, and zero browser console errors. |
+| M20-02 | S | `DONE` | Replace the provisional flag drawings with production flag assets and show a flag beside every dropdown option. | Frontend lint/build passed. Playwright verified four in-menu flag icons, a 44×44px trigger, arrow/Enter/Escape keyboard behavior with focus restoration, locale cookie/localStorage persistence after reload, reduced-motion handling, no overflow at 375/768/1440px, and zero console errors. |
 
 ## Progress Update Rules
 

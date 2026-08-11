@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import FilterBar from '@/components/FilterBar';
 import JobDetail from '@/components/JobDetail';
 import JobList from '@/components/JobList';
+import LanguageSelector from '@/components/LanguageSelector';
 import Map from '@/components/Map';
 import SearchBar from '@/components/SearchBar';
 import { getCityJobCounts, JobSource, type CityJobCounts } from '@/lib/api';
@@ -13,7 +14,6 @@ import {
   formatNumber,
   getCompactCityLabel,
   isLocale,
-  LANGUAGE_OPTIONS,
   LOCALE_TAGS,
   t,
   type Locale,
@@ -38,45 +38,6 @@ function saveLocaleCookie(locale: Locale) {
 type JobMapAppProps = {
   initialLocale: Locale;
 };
-
-function LanguageFlag({ locale }: { locale: Locale }) {
-  if (locale === 'ko') {
-    return (
-      <svg viewBox="0 0 36 36" aria-hidden="true">
-        <rect width="36" height="36" fill="#fff" />
-        <circle cx="18" cy="18" r="7" fill="#1657a8" />
-        <path d="M11 18a7 7 0 0 1 14 0 3.5 3.5 0 0 0-7 0 3.5 3.5 0 0 1-7 0Z" fill="#d9363e" stroke="none" />
-        <path d="m8.2 10.2 4.4-2.6M9.3 12.2l4.4-2.6M22.3 26.4l4.4-2.6M23.4 28.4l4.4-2.6M23.4 7.6l4.4 2.6M22.3 9.6l4.4 2.6M9.3 23.8l4.4 2.6M8.2 25.8l4.4 2.6" stroke="#111827" strokeWidth="1.2" />
-      </svg>
-    );
-  }
-
-  if (locale === 'en') {
-    return (
-      <svg viewBox="0 0 36 36" aria-hidden="true">
-        <rect width="36" height="36" fill="#fff" />
-        <path d="M0 0h9v36H0zM27 0h9v36h-9z" fill="#d52b1e" stroke="none" />
-        <path d="m18 5.5 2 4 3.8-1.4-1.1 4.1 3.6 1.1-3 3.2 1.2 2.1-5.1-.7.5 7.1h-3.8l.5-7.1-5.1.7 1.2-2.1-3-3.2 3.6-1.1-1.1-4.1 3.8 1.4Z" fill="#d52b1e" stroke="none" />
-      </svg>
-    );
-  }
-
-  if (locale === 'ja') {
-    return (
-      <svg viewBox="0 0 36 36" aria-hidden="true">
-        <rect width="36" height="36" fill="#fff" />
-        <circle cx="18" cy="18" r="8.5" fill="#bc002d" stroke="none" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 36 36" aria-hidden="true">
-      <rect width="36" height="36" fill="#de2910" />
-      <path d="m18 6 1.8 3.7 4.1.6-3 2.9.7 4.1-3.6-1.9-3.6 1.9.7-4.1-3-2.9 4.1-.6Z" fill="#ffde00" stroke="none" />
-    </svg>
-  );
-}
 
 export default function JobMapApp({ initialLocale }: JobMapAppProps) {
   const router = useRouter();
@@ -169,8 +130,6 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
     saveLocaleCookie(nextLocale);
   }, []);
 
-  const activeLanguage = LANGUAGE_OPTIONS.find((option) => option.value === locale) ?? LANGUAGE_OPTIONS[0];
-
   return (
     <main className="job-app">
       <header className="app-bar">
@@ -200,26 +159,11 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
             <span className="status-dot" aria-hidden="true" />
             {t(locale, 'allCanada')} · {formatNumber(jobs.length, locale)}{t(locale, 'postings')}
           </div>
-          <label className="language-select" title={`${t(locale, 'language')}: ${activeLanguage.label}`}>
-            <span className="sr-only">{t(locale, 'language')}</span>
-            <span className="language-select__flag" aria-hidden="true">
-              <LanguageFlag locale={locale} />
-            </span>
-            <span className="language-select__chevron" aria-hidden="true">
-              <svg viewBox="0 0 12 12">
-                <path d="m3.5 4.75 2.5 2.5 2.5-2.5" />
-              </svg>
-            </span>
-            <select
-              value={locale}
-              onChange={(event) => handleLocaleChange(event.target.value as Locale)}
-              aria-label={t(locale, 'language')}
-            >
-              {LANGUAGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
+          <LanguageSelector
+            locale={locale}
+            label={t(locale, 'language')}
+            onChange={handleLocaleChange}
+          />
         </div>
       </header>
 
