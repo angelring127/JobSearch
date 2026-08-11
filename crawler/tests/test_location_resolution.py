@@ -50,6 +50,15 @@ class LocationResolutionTests(unittest.TestCase):
         }
         self.assertEqual(apply_verified_business_location(original), original)
 
+    def test_business_alias_does_not_match_a_longer_word(self):
+        original = {
+            "title": "Vanmaker Downtown warehouse role",
+            "location_text": "Vanmaker Downtown",
+            "region_hint": "Vancouver",
+            "location_kind": "business_or_landmark",
+        }
+        self.assertEqual(apply_verified_business_location(original), original)
+
     def test_verified_catalog_can_enrich_title_when_source_has_only_downtown(self):
         result = apply_verified_business_location(
             {

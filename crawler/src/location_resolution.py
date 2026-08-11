@@ -45,10 +45,12 @@ def apply_verified_business_location(job_data: Dict[str, Any]) -> Dict[str, Any]
         "%s %s" % (resolved.get("title") or "", resolved.get("location_text") or "")
     )
     for location in VERIFIED_BUSINESS_LOCATIONS:
-        if not any(alias in haystack for alias in location["aliases"]):
+        if not any(_contains_normalized_phrase(haystack, alias) for alias in location["aliases"]):
             continue
         required_any = location.get("required_any") or ()
-        if required_any and not any(context in haystack for context in required_any):
+        if required_any and not any(
+            _contains_normalized_phrase(haystack, context) for context in required_any
+        ):
             continue
         resolved["location_text"] = location["address"]
         resolved["region_hint"] = location["region_hint"]
@@ -98,3 +100,7 @@ def has_street_address(value: Any) -> bool:
 
 def _normalized_business_text(value: str) -> str:
     return " ".join(re.sub(r"[^\w]+", " ", value.casefold()).split())
+
+
+def _contains_normalized_phrase(haystack: str, phrase: str) -> bool:
+    return bool(re.search(r"(?:^|\s)%s(?:\s|$)" % re.escape(phrase), haystack))

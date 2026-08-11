@@ -241,7 +241,7 @@ content plus AI-assisted extraction.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M18-01 | M | `VERIFY` | Fix AI location precedence, require a geocodable precise address or business for public map confidence, and reprocess the nine-job Downtown Vancouver cluster. | 71 crawler tests, Python compile, frontend lint/build, and production data repair pass; pending independent review, deployment, production API coordinate checks, and map verification. |
+| M18-01 | M | `VERIFY` | Fix AI location precedence, require a geocodable precise address or business for public map confidence, and reprocess the nine-job Downtown Vancouver cluster. | 75 crawler tests, Python compile, frontend lint/build, and production data repair pass; initial independent review findings remediated; pending focused revalidation, deployment, and final production checks. |
 
 ## Progress Update Rules
 
