@@ -54,6 +54,7 @@ Related plan:
 | M16. Local Production Crawl | `DONE` | Keychain-backed Library runtime completed a real production crawl and focused independent revalidation passed |
 | M18. Map Location Accuracy | `DONE` | AI-assisted re-resolution, fail-closed location handling, production data repair, deployment, and public map/API validation complete |
 | M19. Vercel Web Analytics | `DONE` | Privacy-friendly pageview analytics enabled, independently reviewed, deployed, and verified on the production domain |
+| M20. Compact Language Selector | `DONE` | Compact circular vector flag selector verified across responsive widths with accessible country-labelled options |
 
 ## M1. Deployment Foundation
 
@@ -252,6 +253,14 @@ without adding advertising cookies or exposing application secrets.
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M19-01 | S | `DONE` | Enable Vercel Web Analytics for the linked project and mount the Next.js App Router analytics component in the root layout. | Frontend lint/build and independent review passed. Preview `dpl_HdwcyhnvsxnT9b4dHcCtZuGvGYAF` and production `dpl_JGzBSxChFJ8u9EfwC6EfVNiNjZh7` are READY. Vercel reports analytics enabled; the production analytics script, home, crawler health, and viewport API return 200 while unauthenticated cron returns 401. Playwright observed the `@vercel/analytics/next` 2.0.1 script loading with status 200, a queued pageview, and zero console errors; Vercel reported no runtime errors in the post-deploy window. |
+
+## M20. Compact Language Selector
+
+Goal: reduce header width while keeping all four locales discoverable and accessible.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M20-01 | S | `DONE` | Show the active locale as a circular vector flag and expose country plus language names in the native dropdown. | Frontend lint/build passed. Playwright verified a 44×44px selector, all four country/language option names, keyboard focus and type-to-select, saved locale/cookie behavior, no horizontal overflow at 375/768/1440px, and zero browser console errors. |
 
 ## Progress Update Rules
 
