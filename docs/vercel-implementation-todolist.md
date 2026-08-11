@@ -53,7 +53,7 @@ Related plan:
 | M15. Production Crawl Recovery | `DONE` | Current Our Vancouver markup is accepted and the verified production replay exposes 15 deduplicated map jobs |
 | M16. Local Production Crawl | `DONE` | Keychain-backed Library runtime completed a real production crawl and focused independent revalidation passed |
 | M18. Map Location Accuracy | `DONE` | AI-assisted re-resolution, fail-closed location handling, production data repair, deployment, and public map/API validation complete |
-| M19. Vercel Web Analytics | `VERIFY` | Project enablement and root-layout integration complete; validating build, deployment, and production collection |
+| M19. Vercel Web Analytics | `DONE` | Privacy-friendly pageview analytics enabled, independently reviewed, deployed, and verified on the production domain |
 
 ## M1. Deployment Foundation
 
@@ -251,7 +251,7 @@ without adding advertising cookies or exposing application secrets.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M19-01 | S | `VERIFY` | Enable Vercel Web Analytics for the linked project and mount the Next.js App Router analytics component in the root layout. | Vercel reports Web Analytics enabled and the root integration is complete; pending lint/build, deployment, and custom-domain collection verification. |
+| M19-01 | S | `DONE` | Enable Vercel Web Analytics for the linked project and mount the Next.js App Router analytics component in the root layout. | Frontend lint/build and independent review passed. Preview `dpl_HdwcyhnvsxnT9b4dHcCtZuGvGYAF` and production `dpl_JGzBSxChFJ8u9EfwC6EfVNiNjZh7` are READY. Vercel reports analytics enabled; the production analytics script, home, crawler health, and viewport API return 200 while unauthenticated cron returns 401. Playwright observed the `@vercel/analytics/next` 2.0.1 script loading with status 200, a queued pageview, and zero console errors; Vercel reported no runtime errors in the post-deploy window. |
 
 ## Progress Update Rules
 
