@@ -20,7 +20,12 @@ class DirectDbClient:
             raise RuntimeError("DATABASE_URL is not configured")
 
     def _connect(self):
-        return psycopg2.connect(self.database_url, cursor_factory=RealDictCursor)
+        connection = psycopg2.connect(self.database_url, cursor_factory=RealDictCursor)
+        # This client owns crawler/admin writes. Declare each transaction as
+        # READ WRITE so a pooled backend with a stale read-only session default
+        # cannot make production ingestion fail nondeterministically.
+        connection.set_session(readonly=False)
+        return connection
 
     def get_regions(self) -> List[Dict[str, Any]]:
         with self._connect() as conn:

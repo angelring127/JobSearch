@@ -148,14 +148,14 @@ def curate_ourvancouver_job(
     if location_kind == "street_address" and not _street_address_is_grounded(location_query, combined):
         return None
 
-    normalized = _neighborhood_location("%s %s" % (combined, location_query))
-    location_fallback_text = None
+    # The AI-selected query takes precedence over unrelated neighborhood words
+    # elsewhere in the post. For example, a North Vancouver/Lonsdale result
+    # must not be overwritten by a generic "downtown" mention in the title.
+    normalized = _neighborhood_location(location_query)
     if normalized:
         region_hint = normalized[1]
         if location_kind == "neighborhood":
             location_query = normalized[0]
-        elif location_kind == "business_or_landmark":
-            location_fallback_text = normalized[0]
     else:
         region_hint = (
             _canonical_region(location_query)
@@ -164,10 +164,7 @@ def curate_ourvancouver_job(
             or "Vancouver"
         )
 
-    result = _apply_location(curated, location_query, region_hint, location_kind)
-    if location_fallback_text:
-        result["location_fallback_text"] = location_fallback_text
-    return result
+    return _apply_location(curated, location_query, region_hint, location_kind)
 
 
 def _grounded_location(job: Dict[str, Any], combined: str) -> Optional[Tuple[str, str, str]]:

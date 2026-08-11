@@ -77,7 +77,7 @@ class JobQualityTests(unittest.TestCase):
         )
         self.assertIsNotNone(result)
         self.assertEqual(result["location_text"], "Hongdae Buljok Lougheed")
-        self.assertEqual(result["location_fallback_text"], "Lougheed Town Centre, Burnaby, BC")
+        self.assertNotIn("location_fallback_text", result)
         self.assertEqual(result["region_hint"], "Burnaby")
         self.assertEqual(result["location_kind"], "business_or_landmark")
 
@@ -95,7 +95,7 @@ class JobQualityTests(unittest.TestCase):
         )
         self.assertIsNotNone(result)
         self.assertEqual(result["location_text"], "Example Sushi Metrotown")
-        self.assertEqual(result["location_fallback_text"], "Metropolis at Metrotown, Burnaby, BC")
+        self.assertNotIn("location_fallback_text", result)
         self.assertEqual(result["region_hint"], "Burnaby")
 
     def test_prefers_hongdae_pocha_business_over_robson_street_center(self):
@@ -112,8 +112,29 @@ class JobQualityTests(unittest.TestCase):
         )
         self.assertIsNotNone(result)
         self.assertEqual(result["location_text"], "Hongdae Pocha Robson")
-        self.assertEqual(result["location_fallback_text"], "Robson Street, Vancouver, BC")
+        self.assertNotIn("location_fallback_text", result)
         self.assertEqual(result["region_hint"], "Vancouver")
+
+    def test_ai_neighborhood_is_not_overridden_by_downtown_title(self):
+        analyzer = Mock()
+        analyzer.analyze.return_value = {
+            "is_job_posting": True,
+            "location_kind": "neighborhood",
+            "location_query": "Lonsdale, North Vancouver, BC",
+            "region_hint": "North Vancouver",
+        }
+        result = curate_ourvancouver_job(
+            job(
+                405984,
+                "노스밴 포케바 라인서버, 키친헬퍼 구인합니다.",
+                "위치: 노스밴 론즈데일 다운타운",
+            ),
+            analyzer,
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["location_text"], "Lonsdale, North Vancouver, BC")
+        self.assertEqual(result["region_hint"], "North Vancouver")
+        self.assertEqual(result["location_kind"], "neighborhood")
 
     def test_rejects_multiple_locations_for_one_map_marker(self):
         analyzer = Mock()

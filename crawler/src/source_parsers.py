@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from bs4 import BeautifulSoup
 
 from crawler import extract_address, extract_location_hints, parse_category, parse_wage
+from location_resolution import has_street_address
 
 
 def _clean_text(value: str) -> str:
@@ -172,6 +173,21 @@ def _strip_address_unit(value: str) -> str:
     )
 
 
+def _location_kind(location_text: Optional[str], region_hint: str = "") -> str:
+    normalized = _clean_text(location_text or "")
+    if not normalized:
+        return "none"
+    if has_street_address(normalized):
+        return "street_address"
+    if region_hint and normalized.casefold().strip(" ,") in {
+        region_hint.casefold(),
+        "%s bc" % region_hint.casefold(),
+        "%s canada" % region_hint.casefold(),
+    }:
+        return "city_only"
+    return "neighborhood"
+
+
 def extract_ourvancouver_ids(html: str, last_seen_id: int) -> List[int]:
     ids = [int(value) for value in re.findall(r"\bdataid\s*:\s*(\d+)", html)]
     return _unique_ids(ids, last_seen_id)
@@ -267,6 +283,7 @@ def parse_jinzaicanada_job(html: str, source_url: str, item_id: int) -> Optional
         "category": parse_category(title, "%s %s" % (fields.get("ポジション", ""), content)),
         "region_hint": region_hint,
         "location_text": location_text or region_hint,
+        "location_kind": _location_kind(location_text or region_hint, region_hint),
         "posted_at": posted_at,
     }
 
@@ -318,7 +335,7 @@ def parse_vanchosun_job(html: str, source_url: str, item_id: int) -> Optional[Di
         "category": parse_category(title, "%s %s" % (fields.get("모집분야", ""), content)),
         "region_hint": region_hint,
         "location_text": location_text,
-        "location_kind": "street_address" if location_text else "none",
+        "location_kind": _location_kind(location_text, region_hint),
         "posted_at": _posted_at(detail_text, [r"등록일\s*:\s*(\d{4}-\d{2}-\d{2})"]),
     }
 
@@ -400,6 +417,7 @@ def parse_sinojobs_job(
         "category": parse_category(title, "%s %s" % (industry, description)),
         "region_hint": region_hint,
         "location_text": location_text,
+        "location_kind": _location_kind(location_text, region_hint),
         "posted_at": posted_at.isoformat() if posted_at else None,
     }
 

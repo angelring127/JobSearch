@@ -165,7 +165,11 @@ class CrawlerRouteTests(unittest.TestCase):
 
         with (
             patch.dict(api.ADAPTERS, {"refresh": adapter}),
-            patch.object(api, "geocode_location", return_value=(49.28, -123.12, 0.8)),
+            patch.object(
+                api,
+                "resolve_map_location",
+                side_effect=lambda job_data, region: (job_data, 49.28, -123.12, 0.8),
+            ),
         ):
             summary = api.run_source_crawl("refresh", max_posts_per_region=2, db=db)
 
@@ -204,7 +208,11 @@ class CrawlerRouteTests(unittest.TestCase):
 
         with (
             patch.dict(api.ADAPTERS, {"recent": adapter}),
-            patch.object(api, "geocode_location", return_value=(49.28, -123.12, 0.8)),
+            patch.object(
+                api,
+                "resolve_map_location",
+                side_effect=lambda job_data, region: (job_data, 49.28, -123.12, 0.8),
+            ),
         ):
             summary = api.run_source_crawl("recent", max_posts_per_region=2, db=db)
 

@@ -91,7 +91,21 @@ class SourceParserTests(unittest.TestCase):
         self.assertIsNotNone(job)
         self.assertEqual(job["region_hint"], "New Westminster")
         self.assertEqual(job["location_text"], "406 6th St, New Westminster, BC")
+        self.assertEqual(job["location_kind"], "street_address")
         self.assertEqual(job["posted_at"], "2026-08-01T08:30:15")
+
+    def test_jinzaicanada_marks_downtown_only_as_neighborhood(self):
+        detail = """
+        <main class="job-detail">
+          <h1 class="entry-title">NinNin Ramen サーバー募集中！</h1>
+          <table>
+            <tr><th>エリア</th><td>Downtown</td></tr>
+          </table>
+        </main>
+        """
+        job = parse_jinzaicanada_job(detail, "https://example.test/job/3367", 3367)
+        self.assertEqual(job["location_text"], "Downtown")
+        self.assertEqual(job["location_kind"], "neighborhood")
 
     def test_jinzaicanada_normalizes_squamish_and_inline_unit(self):
         detail = """
@@ -191,6 +205,7 @@ class SourceParserTests(unittest.TestCase):
         self.assertEqual(job["source_url"], "https://en.sinojobs.ca/job/example-warehouse-role/")
         self.assertEqual(job["region_hint"], "Mississauga")
         self.assertEqual(job["location_text"], "Mississauga, Ontario, Canada")
+        self.assertEqual(job["location_kind"], "neighborhood")
         self.assertEqual(job["wage_min"], 25)
         self.assertEqual(job["wage_max"], 27)
         self.assertEqual(job["category"], "warehouse")

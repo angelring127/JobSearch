@@ -9,6 +9,8 @@ from typing import Optional, Dict, List
 from bs4 import BeautifulSoup
 import httpx
 
+from location_resolution import has_street_address
+
 logger = logging.getLogger(__name__)
 
 # リクエスト間隔（秒）
@@ -460,10 +462,15 @@ def parse_job_post(html: str, url: str, msgid: int) -> Optional[Dict]:
                 ])
                 if not city_in_address and region_hint.lower() not in address.lower():
                     location_text = f"{address}, {region_hint}, BC"
+            location_kind = "street_address" if has_street_address(address) else "neighborhood"
         elif store_name and region_hint:
             location_text = f"{store_name}, {region_hint}, BC"
+            location_kind = "business_or_landmark"
         elif region_hint:
             location_text = f"{region_hint}, BC"
+            location_kind = "city_only"
+        else:
+            location_kind = "none"
         
         # 複数住所がある場合はログに記録（将来の拡張用）
         if len(addresses) > 1:
@@ -481,6 +488,7 @@ def parse_job_post(html: str, url: str, msgid: int) -> Optional[Dict]:
             'category': category,
             'region_hint': region_hint,
             'location_text': location_text,  # 実際の住所または店舗名+都市名
+            'location_kind': location_kind,
             'posted_at': posted_at.isoformat() if posted_at else None,
         }
     except Exception as e:

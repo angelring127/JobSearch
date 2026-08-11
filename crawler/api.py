@@ -19,7 +19,7 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 from adapters import get_adapter_registry  # noqa: E402
 from crawler import USER_AGENT  # noqa: E402
 from db_direct import DirectDbClient  # noqa: E402
-from geocoding import geocode_location  # noqa: E402
+from location_resolution import resolve_map_location  # noqa: E402
 from posted_date import backfill_missing_posted_dates  # noqa: E402
 from title_translation import backfill_missing_title_translations  # noqa: E402
 
@@ -223,21 +223,10 @@ def run_source_crawl(
                             summary["skipped"] += 1
                             continue
 
-                        has_explicit_location_policy = "location_kind" in job_data
-                        location_text = job_data.get("location_text")
-                        if not location_text and not has_explicit_location_policy:
-                            location_text = job_data.get("region_hint") or region["city"]
-                        lat, lng, confidence = geocode_location(
-                            location_text,
-                            job_data.get("region_hint") or region["city"],
-                            allow_region_fallback=not has_explicit_location_policy,
+                        job_data, lat, lng, confidence = resolve_map_location(
+                            job_data,
+                            region["city"],
                         )
-                        if (lat is None or lng is None) and job_data.get("location_fallback_text"):
-                            lat, lng, confidence = geocode_location(
-                                job_data["location_fallback_text"],
-                                job_data.get("region_hint") or region["city"],
-                                allow_region_fallback=False,
-                            )
                         result = db.upsert_job(source_key, job_data, lat, lng, confidence)
                         if getattr(adapter, "scan_recent_window", False) is True:
                             db.mark_crawl_item_seen(source_key, bbs, msgid, "stored")

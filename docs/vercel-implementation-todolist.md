@@ -52,6 +52,7 @@ Related plan:
 | M14. Vercel Deployment | `DONE` | Supabase secured and production deployment verified end to end with the pooled database connection |
 | M15. Production Crawl Recovery | `DONE` | Current Our Vancouver markup is accepted and the verified production replay exposes 15 deduplicated map jobs |
 | M16. Local Production Crawl | `DONE` | Keychain-backed Library runtime completed a real production crawl and focused independent revalidation passed |
+| M18. Map Location Accuracy | `VERIFY` | Code complete; validating AI-assisted re-resolution, fail-closed behavior, production data repair, and public map/API results |
 
 ## M1. Deployment Foundation
 
@@ -231,6 +232,16 @@ sources whose public delivery and access rules support responsible ingestion.
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M17-01 | M | `DONE` | Research Canadian Korean, Japanese, and Chinese job sources; add a rate-limited Sinojobs RSS/JobPosting adapter; and document sources excluded by anti-crawling terms. | 61 crawler tests and Python compile pass; frontend lint/build and diff checks pass; the idempotent local migration registers Sinojobs enabled; a bounded live run discovered IDs 2812/2810/2808 and parsed current Vancouver metadata. The adapter enforces the published 20-second delay after successful and failed responses, retries unseen recent failures, rejects expired/outside-Canada/ambiguous `CA` locations, and does not persist description/contact data. Independent review findings were remediated and final focused revalidation passed. |
+
+## M18. Map Location Accuracy
+
+Goal: prevent broad city or neighborhood fallback points from appearing as exact
+workplace markers and revalidate clustered production rows against current source
+content plus AI-assisted extraction.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M18-01 | M | `VERIFY` | Fix AI location precedence, require a geocodable precise address or business for public map confidence, and reprocess the nine-job Downtown Vancouver cluster. | 71 crawler tests, Python compile, frontend lint/build, and production data repair pass; pending independent review, deployment, production API coordinate checks, and map verification. |
 
 ## Progress Update Rules
 
