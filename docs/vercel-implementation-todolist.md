@@ -55,6 +55,7 @@ Related plan:
 | M18. Map Location Accuracy | `DONE` | AI-assisted re-resolution, fail-closed location handling, production data repair, deployment, and public map/API validation complete |
 | M19. Vercel Web Analytics | `DONE` | Privacy-friendly pageview analytics enabled, independently reviewed, deployed, and verified on the production domain |
 | M20. Compact Language Selector | `DONE` | The compact selector now uses polished circular SVG flags and an accessible menu that shows each flag with its country and language name. |
+| M21. Compact Mobile Search | `DONE` | Mobile intro/search height is nearly halved while labels, feedback, and touch-sized controls remain intact. |
 
 ## M1. Deployment Foundation
 
@@ -262,6 +263,14 @@ Goal: reduce header width while keeping all four locales discoverable and access
 | --- | --- | --- | --- | --- |
 | M20-01 | S | `DONE` | Show the active locale as a circular vector flag and expose country plus language names in the native dropdown. | Frontend lint/build passed. Playwright verified a 44×44px selector, all four country/language option names, keyboard focus and type-to-select, saved locale/cookie behavior, no horizontal overflow at 375/768/1440px, and zero browser console errors. |
 | M20-02 | S | `DONE` | Replace the provisional flag drawings with production flag assets and show a flag beside every dropdown option. | Frontend lint/build passed. Playwright verified four in-menu flag icons, a 44×44px trigger, arrow/Enter/Escape keyboard behavior with focus restoration, locale cookie/localStorage persistence after reload, reduced-motion handling, no overflow at 375/768/1440px, and zero console errors. |
+
+## M21. Compact Mobile Search
+
+Goal: expose more job results above the fold on mobile without shrinking search touch targets.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M21-01 | S | `DONE` | Reduce mobile-only intro/search spacing and remove the empty reserved error row while retaining accessible labels and feedback. | Frontend lint/build passed. Playwright verified the combined mobile intro/search height fell from about 294px to 160px at 375px, input and button stayed 44px high, error feedback remained visible when populated, no overflow at 320/375/667-landscape/768px or enlarged text, and zero browser console errors. |
 
 ## Progress Update Rules
 

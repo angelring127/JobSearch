@@ -1288,6 +1288,41 @@ summary:active,
   transform: translateY(1px);
 }
 
+@media (max-width: 47.999rem) {
+  .discovery-panel__intro {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .eyebrow {
+    margin-bottom: var(--space-2xs);
+  }
+
+  .discovery-panel__intro h1 {
+    font-size: var(--text-md);
+  }
+
+  .discovery-panel__intro > p:last-child {
+    display: none;
+  }
+
+  .search-section {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .search-section .field-label {
+    margin-bottom: var(--space-2xs);
+  }
+
+  .search-section .field-error:empty {
+    display: none;
+  }
+
+  .search-button {
+    min-width: 4.25rem;
+    padding-inline: var(--space-sm);
+  }
+}
+
 @media (max-width: 25.875rem) {
   .filter-summary__hint {
     display: none;
