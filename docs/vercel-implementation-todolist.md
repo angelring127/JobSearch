@@ -55,7 +55,7 @@ Related plan:
 | M18. Map Location Accuracy | `DONE` | AI-assisted re-resolution, fail-closed location handling, production data repair, deployment, and public map/API validation complete |
 | M19. Vercel Web Analytics | `DONE` | Privacy-friendly pageview analytics enabled, independently reviewed, deployed, and verified on the production domain |
 | M20. Compact Language Selector | `DONE` | The compact selector now uses polished circular SVG flags and an accessible menu that shows each flag with its country and language name. |
-| M21. Compact Mobile Search | `DOING` | Mobile density work is complete and is moving through independent review, preview verification, and production promotion. |
+| M21. Compact Mobile Search | `DONE` | Mobile density work passed independent review and local/preview/production validation, then shipped to the production domain. |
 
 ## M1. Deployment Foundation
 
@@ -271,7 +271,7 @@ Goal: expose more job results above the fold on mobile without shrinking search 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M21-01 | S | `DONE` | Reduce mobile-only intro/search spacing and remove the empty reserved error row while retaining accessible labels and feedback. | Frontend lint/build passed. Playwright verified the combined mobile intro/search height fell from about 294px to 160px at 375px, input and button stayed 44px high, error feedback remained visible when populated, no overflow at 320/375/667-landscape/768px or enlarged text, and zero browser console errors. |
-| M21-02 | S | `DOING` | Independently review the compact mobile search checkpoint, deploy it to preview, verify the public surface, and promote the validated artifact to production. | Pending independent review and Vercel deployment evidence. |
+| M21-02 | S | `DONE` | Independently review the compact mobile search checkpoint, deploy it to preview, verify the public surface, and promote the validated artifact to production. | Independent review found no Critical/High/Medium issues (one non-blocking Low note; reviewer sandbox could not rerun commands), while Codex lint/build passed. Preview `dpl_CGtfuokhYWwXmoNwZVWYcjzL7f4Z` reached Ready and returned 200 for the home, crawler health, city counts, viewport, and nearby routes while unauthenticated crawl returned 401. Production `dpl_CmNd9jdsoBthRSeGD6Z2pVfbUEcn` reached Ready at `https://jobmap.narulabs.ca`; the same HTTP checks passed, Web Analytics returned 200, 375×812 Playwright measured 68px intro + 92px search sections with 44px controls and no horizontal overflow, verified all four country/language flags, and reported zero console or post-deployment runtime errors. |
 
 ## Progress Update Rules
 
