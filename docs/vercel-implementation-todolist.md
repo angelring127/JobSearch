@@ -57,7 +57,7 @@ Related plan:
 | M20. Compact Language Selector | `DONE` | The compact selector now uses polished circular SVG flags and an accessible menu that shows each flag with its country and language name. |
 | M21. Compact Mobile Search | `DONE` | Mobile density work passed independent review and local/preview/production validation, then shipped to the production domain. |
 | M22. Mobile List Detail Visibility | `DONE` | Mobile list view now keeps the selected card context without displaying the job-detail panel; map and desktop details remain available. |
-| M23. Source Removal Sync | `VERIFY` | Bounded deterministic deletion checks are implemented and awaiting independent checkpoint review. |
+| M23. Source Removal Sync | `DONE` | Bounded deterministic deletion checks passed full crawler validation and independent checkpoint revalidation. |
 
 ## M1. Deployment Foundation
 
@@ -289,7 +289,7 @@ Goal: promptly remove definitively deleted source posts without adding a full-po
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M23-01 | M | `VERIFY` | Compare recent Our Vancouver listing IDs with stored IDs, verify only bounded missing candidates, and remove confirmed deleted sources while preserving transient failures. | Focused tests passed (25), the full crawler suite passed (82), Python compilation passed, and a bounded live read found 1,189 recent listing IDs with `405995` absent while its detail endpoint classified as removed. Pending independent checkpoint review. |
+| M23-01 | M | `DONE` | Compare recent Our Vancouver listing IDs with stored IDs, verify only bounded missing candidates, and remove confirmed deleted sources while preserving transient failures. | Focused tests passed (26), the full crawler suite passed (83), Python compilation and `git diff --check` passed, and a bounded live read found 1,189 recent listing IDs with `405995` absent while its detail endpoint classified as removed. Independent review found no Critical/High/Medium defects; the exact-10 guard boundary test closed the sole actionable Low note, and final revalidation passed. |
 
 ## Progress Update Rules
 
