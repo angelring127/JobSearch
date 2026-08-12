@@ -131,7 +131,7 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
   }, []);
 
   return (
-    <main className="job-app">
+    <main className={`job-app job-app--${mobileView}`}>
       <header className="app-bar">
         <div className="wordmark" aria-label={t(locale, 'home')}>
           <span className="wordmark__mark" aria-hidden="true">JM</span>

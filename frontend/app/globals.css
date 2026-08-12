@@ -1289,6 +1289,10 @@ summary:active,
 }
 
 @media (max-width: 47.999rem) {
+  .job-app--list .job-detail {
+    display: none;
+  }
+
   .discovery-panel__intro {
     padding: var(--space-sm) var(--space-md);
   }
