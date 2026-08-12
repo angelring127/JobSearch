@@ -4,7 +4,12 @@ from datetime import date
 import httpx
 from unittest.mock import patch
 
-from adapters import OurVancouverAdapter
+from adapters import (
+    ITEM_AVAILABILITY_ACTIVE,
+    ITEM_AVAILABILITY_REMOVED,
+    ITEM_AVAILABILITY_UNKNOWN,
+    OurVancouverAdapter,
+)
 
 
 def _listing_article(item_id, elapsed, depth):
@@ -18,6 +23,47 @@ def _listing_article(item_id, elapsed, depth):
 
 
 class OurVancouverPaginationTests(unittest.TestCase):
+    def test_availability_classifies_active_removed_and_unknown_responses(self):
+        adapter = OurVancouverAdapter(today_provider=lambda: date(2026, 8, 11))
+        region = {"city": "Vancouver", "bbs": 1, "listing_url": adapter.listing_url}
+        cases = [
+            (200, "<div>현재 채용 게시물</div>", ITEM_AVAILABILITY_ACTIVE),
+            (200, "<div>존재하지 않는 게시물입니다.</div>", ITEM_AVAILABILITY_REMOVED),
+            (404, "<div>not found</div>", ITEM_AVAILABILITY_REMOVED),
+            (410, "<div>gone</div>", ITEM_AVAILABILITY_REMOVED),
+            (403, "<div>forbidden</div>", ITEM_AVAILABILITY_UNKNOWN),
+            (429, "<div>rate limited</div>", ITEM_AVAILABILITY_UNKNOWN),
+            (500, "<div>temporary failure</div>", ITEM_AVAILABILITY_UNKNOWN),
+            (200, "", ITEM_AVAILABILITY_UNKNOWN),
+        ]
+
+        for status_code, body, expected in cases:
+            with self.subTest(status_code=status_code, body=body):
+                def handler(request):
+                    return httpx.Response(status_code, text=body)
+
+                with (
+                    httpx.Client(transport=httpx.MockTransport(handler)) as client,
+                    patch("adapters.time.sleep"),
+                ):
+                    actual = adapter.check_item_availability(405995, region, client)
+                self.assertEqual(actual, expected)
+
+    def test_availability_preserves_item_on_request_failure(self):
+        adapter = OurVancouverAdapter(today_provider=lambda: date(2026, 8, 11))
+        region = {"city": "Vancouver", "bbs": 1, "listing_url": adapter.listing_url}
+
+        def handler(request):
+            raise httpx.ConnectError("temporary failure", request=request)
+
+        with (
+            httpx.Client(transport=httpx.MockTransport(handler)) as client,
+            patch("adapters.time.sleep"),
+        ):
+            actual = adapter.check_item_availability(405995, region, client)
+
+        self.assertEqual(actual, ITEM_AVAILABILITY_UNKNOWN)
+
     def test_detail_fetch_uses_single_dated_desktop_response(self):
         requested_paths = []
         detail = """

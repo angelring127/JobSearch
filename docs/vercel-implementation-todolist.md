@@ -57,6 +57,7 @@ Related plan:
 | M20. Compact Language Selector | `DONE` | The compact selector now uses polished circular SVG flags and an accessible menu that shows each flag with its country and language name. |
 | M21. Compact Mobile Search | `DONE` | Mobile density work passed independent review and local/preview/production validation, then shipped to the production domain. |
 | M22. Mobile List Detail Visibility | `DONE` | Mobile list view now keeps the selected card context without displaying the job-detail panel; map and desktop details remain available. |
+| M23. Source Removal Sync | `VERIFY` | Bounded deterministic deletion checks are implemented and awaiting independent checkpoint review. |
 
 ## M1. Deployment Foundation
 
@@ -281,6 +282,14 @@ Goal: keep the mobile list focused on scanning job cards without covering it wit
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M22-01 | S | `DONE` | Render the selected-job detail only in map view while preserving desktop detail behavior and selected-job map context. | Frontend lint/build passed. Playwright verified that a selected job remains highlighted while its detail is hidden from the visual and accessibility trees at 375×812 and 667×375, detail returns in map view, desktop detail remains visible at 1024×768, no horizontal overflow occurs, and browser console errors remain at zero. |
+
+## M23. Source Removal Sync
+
+Goal: promptly remove definitively deleted source posts without adding a full-post recheck to every crawl.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M23-01 | M | `VERIFY` | Compare recent Our Vancouver listing IDs with stored IDs, verify only bounded missing candidates, and remove confirmed deleted sources while preserving transient failures. | Focused tests passed (25), the full crawler suite passed (82), Python compilation passed, and a bounded live read found 1,189 recent listing IDs with `405995` absent while its detail endpoint classified as removed. Pending independent checkpoint review. |
 
 ## Progress Update Rules
 

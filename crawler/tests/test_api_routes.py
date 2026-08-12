@@ -248,6 +248,107 @@ class CrawlerRouteTests(unittest.TestCase):
         db.mark_crawl_item_seen.assert_not_called()
         self.assertEqual(summary["failed"], 1)
 
+    def test_missing_source_item_is_removed_only_after_definitive_check(self):
+        db = Mock()
+        db.create_crawl_run.return_value = 44
+        db.get_source.return_value = {"source_key": "ourvancouver", "enabled": True}
+        db.get_last_msgid.return_value = 120
+        db.get_recent_source_item_ids.return_value = {115, 120}
+        db.get_seen_item_ids.return_value = {120}
+        db.delete_source_job.return_value = {
+            "deleted_sources": 1,
+            "deleted_jobs": 1,
+            "reconciled_jobs": 0,
+        }
+
+        adapter = Mock()
+        adapter.source_key = "ourvancouver"
+        adapter.scan_recent_window = True
+        adapter.refresh_current_listing = False
+        adapter.verify_missing_items = True
+        adapter.get_regions.return_value = [
+            {"city": "Vancouver", "bbs": 1, "listing_url": "https://example.test/jobs"}
+        ]
+        adapter.get_new_item_ids.return_value = [120]
+        adapter.check_item_availability.return_value = "removed"
+
+        with patch.dict(api.ADAPTERS, {"ourvancouver": adapter}):
+            summary = api.run_source_crawl("ourvancouver", max_posts_per_region=1, db=db)
+
+        adapter.check_item_availability.assert_called_once()
+        self.assertEqual(adapter.check_item_availability.call_args.args[0], 115)
+        db.delete_source_job.assert_called_once_with("ourvancouver", "115")
+        self.assertEqual(
+            summary["removal_check"],
+            {
+                "status": "ok",
+                "candidates": 1,
+                "checked": 1,
+                "removed": 1,
+                "active": 0,
+                "unknown": 0,
+                "deferred": 0,
+                "deleted_jobs": 1,
+                "reconciled_jobs": 0,
+            },
+        )
+
+    def test_missing_source_item_is_preserved_when_check_is_unknown(self):
+        db = Mock()
+        db.create_crawl_run.return_value = 45
+        db.get_source.return_value = {"source_key": "ourvancouver", "enabled": True}
+        db.get_last_msgid.return_value = 120
+        db.get_recent_source_item_ids.return_value = {115, 120}
+        db.get_seen_item_ids.return_value = {120}
+
+        adapter = Mock()
+        adapter.source_key = "ourvancouver"
+        adapter.scan_recent_window = True
+        adapter.refresh_current_listing = False
+        adapter.verify_missing_items = True
+        adapter.get_regions.return_value = [
+            {"city": "Vancouver", "bbs": 1, "listing_url": "https://example.test/jobs"}
+        ]
+        adapter.get_new_item_ids.return_value = [120]
+        adapter.check_item_availability.return_value = "unknown"
+
+        with patch.dict(api.ADAPTERS, {"ourvancouver": adapter}):
+            summary = api.run_source_crawl("ourvancouver", max_posts_per_region=1, db=db)
+
+        db.delete_source_job.assert_not_called()
+        self.assertEqual(summary["removal_check"]["status"], "partial")
+        self.assertEqual(summary["removal_check"]["unknown"], 1)
+
+    def test_missing_source_item_guard_defers_large_candidate_set(self):
+        db = Mock()
+        db.create_crawl_run.return_value = 46
+        db.get_source.return_value = {"source_key": "ourvancouver", "enabled": True}
+        db.get_last_msgid.return_value = 120
+        db.get_recent_source_item_ids.return_value = set(range(100, 112))
+        db.get_seen_item_ids.return_value = set()
+
+        adapter = Mock()
+        adapter.source_key = "ourvancouver"
+        adapter.scan_recent_window = True
+        adapter.refresh_current_listing = False
+        adapter.verify_missing_items = True
+        adapter.get_regions.return_value = [
+            {"city": "Vancouver", "bbs": 1, "listing_url": "https://example.test/jobs"}
+        ]
+        adapter.get_new_item_ids.return_value = []
+
+        with (
+            patch.dict(api.ADAPTERS, {"ourvancouver": adapter}),
+            self.assertLogs(api.logger, level="WARNING"),
+        ):
+            summary = api.run_source_crawl("ourvancouver", max_posts_per_region=1, db=db)
+
+        adapter.check_item_availability.assert_not_called()
+        db.delete_source_job.assert_not_called()
+        self.assertEqual(summary["removal_check"]["status"], "guarded")
+        self.assertEqual(summary["removal_check"]["candidates"], 12)
+        self.assertEqual(summary["removal_check"]["deferred"], 12)
+
     def test_enabled_sources_runs_retention_cleanup_once(self):
         db = Mock()
         db.get_enabled_sources.return_value = []

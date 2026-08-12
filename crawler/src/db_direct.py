@@ -391,6 +391,34 @@ class DirectDbClient:
                         continue
                 return seen
 
+    def get_recent_source_item_ids(
+        self,
+        source_key: str,
+        retention_days: int = 14,
+    ) -> Set[int]:
+        if retention_days < 1:
+            raise ValueError("retention_days must be at least 1")
+
+        with self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT external_id
+                    FROM job_sources
+                    WHERE source_key = %s
+                      AND COALESCE(posted_at, created_at) >=
+                          NOW() - make_interval(days => %s)
+                    """,
+                    (source_key, retention_days),
+                )
+                item_ids: Set[int] = set()
+                for row in cur.fetchall():
+                    try:
+                        item_ids.add(int(row["external_id"]))
+                    except (TypeError, ValueError):
+                        continue
+                return item_ids
+
     def mark_crawl_item_seen(
         self,
         source_key: str,

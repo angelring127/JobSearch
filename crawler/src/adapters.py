@@ -27,12 +27,17 @@ OURVANCOUVER_LISTING_REQUEST_INTERVAL = 0.2
 OURVANCOUVER_RETENTION_DAYS = 14
 OURVANCOUVER_MAX_LISTING_PAGES = 200
 
+ITEM_AVAILABILITY_ACTIVE = "active"
+ITEM_AVAILABILITY_REMOVED = "removed"
+ITEM_AVAILABILITY_UNKNOWN = "unknown"
+
 
 class CrawlerAdapter(ABC):
     source_key: str
     display_name: str
     refresh_current_listing = False
     scan_recent_window = False
+    verify_missing_items = False
 
     @abstractmethod
     def get_regions(self, db_client: Any) -> List[Dict[str, Any]]:
@@ -49,6 +54,15 @@ class CrawlerAdapter(ABC):
     def fetch_posted_at(self, item_id: int, region: Dict[str, Any], client: httpx.Client) -> Optional[str]:
         job = self.fetch_item(item_id, region, client)
         return str(job["posted_at"]) if job and job.get("posted_at") else None
+
+    def check_item_availability(
+        self,
+        item_id: int,
+        region: Dict[str, Any],
+        client: httpx.Client,
+    ) -> str:
+        del item_id, region, client
+        return ITEM_AVAILABILITY_UNKNOWN
 
 
 def _fetch_public_html(client: httpx.Client, url: str) -> str:
@@ -78,6 +92,7 @@ class OurVancouverAdapter(CrawlerAdapter):
     source_key = "ourvancouver"
     display_name = "우벤유"
     scan_recent_window = True
+    verify_missing_items = True
     listing_url = "https://m.cafe.daum.net/ourvancouver/1xBD?"
     listing_api_url = "https://m.cafe.daum.net/api/v1/common-articles"
     detail_url = "https://m.cafe.daum.net/ourvancouver/1xBD/{item_id}"
@@ -171,6 +186,38 @@ class OurVancouverAdapter(CrawlerAdapter):
         html = _fetch_public_html(client, self.detail_fetch_url.format(item_id=item_id))
         time.sleep(PUBLIC_SOURCE_REQUEST_INTERVAL)
         return parse_ourvancouver_posted_at(html)
+
+    def check_item_availability(
+        self,
+        item_id: int,
+        region: Dict[str, Any],
+        client: httpx.Client,
+    ) -> str:
+        del region
+        try:
+            response = client.get(self.detail_fetch_url.format(item_id=item_id))
+            if response.status_code in {404, 410}:
+                return ITEM_AVAILABILITY_REMOVED
+            if response.status_code != 200:
+                return ITEM_AVAILABILITY_UNKNOWN
+
+            html = response.text.strip()
+            if not html:
+                return ITEM_AVAILABILITY_UNKNOWN
+            if any(
+                marker in html
+                for marker in (
+                    "존재하지 않는 게시물입니다",
+                    "삭제된 게시물입니다",
+                    "삭제되었거나 존재하지 않는 게시물",
+                )
+            ):
+                return ITEM_AVAILABILITY_REMOVED
+            return ITEM_AVAILABILITY_ACTIVE
+        except httpx.HTTPError:
+            return ITEM_AVAILABILITY_UNKNOWN
+        finally:
+            time.sleep(PUBLIC_SOURCE_REQUEST_INTERVAL)
 
 
 def _parse_ourvancouver_listing_articles(html: str) -> List[Dict[str, Any]]:

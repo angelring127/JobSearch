@@ -16,7 +16,11 @@ sys.path.insert(0, str(SRC_DIR))
 load_dotenv(PROJECT_ROOT / ".env.local")
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-from adapters import get_adapter_registry  # noqa: E402
+from adapters import (  # noqa: E402
+    ITEM_AVAILABILITY_ACTIVE,
+    ITEM_AVAILABILITY_REMOVED,
+    get_adapter_registry,
+)
 from crawler import USER_AGENT  # noqa: E402
 from db_direct import DirectDbClient  # noqa: E402
 from location_resolution import resolve_map_location  # noqa: E402
@@ -29,6 +33,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_POSTS_PER_REGION = 3
 DEFAULT_OURVANCOUVER_MAX_POSTS_PER_REGION = 100
 DEFAULT_JOB_RETENTION_DAYS = 14
+MAX_REMOVAL_CANDIDATES_PER_REGION = 10
 ADAPTERS = get_adapter_registry()
 
 app = FastAPI(title="JobMap Crawler")
@@ -155,6 +160,17 @@ def run_source_crawl(
         "skipped": 0,
         "failed": 0,
         "failures": [],
+        "removal_check": {
+            "status": "pending" if getattr(adapter, "verify_missing_items", False) is True else "skipped",
+            "candidates": 0,
+            "checked": 0,
+            "removed": 0,
+            "active": 0,
+            "unknown": 0,
+            "deferred": 0,
+            "deleted_jobs": 0,
+            "reconciled_jobs": 0,
+        },
     }
 
     try:
@@ -189,6 +205,20 @@ def run_source_crawl(
                     continue
 
                 unique_msgids = list(dict.fromkeys(msgids))
+                if getattr(adapter, "verify_missing_items", False) is True:
+                    try:
+                        _sync_removed_source_items(
+                            adapter=adapter,
+                            db=db,
+                            client=client,
+                            region=region,
+                            current_item_ids=unique_msgids,
+                            removal_check=summary["removal_check"],
+                        )
+                    except Exception as exc:
+                        summary["removal_check"]["status"] = "failed"
+                        _record_failure(summary, region, None, "Removal check failed: %s" % exc)
+
                 if getattr(adapter, "scan_recent_window", False) is True:
                     seen_msgids = db.get_seen_item_ids(source_key, bbs, unique_msgids)
                     unseen_msgids = [msgid for msgid in unique_msgids if msgid not in seen_msgids]
@@ -255,6 +285,50 @@ def run_source_crawl(
         summary["duration_sec"] = round(time.time() - started_at, 3)
         db.record_crawl_failures(run_id, source_key, summary["failures"])
         db.finish_crawl_run(run_id, source_key, summary)
+
+
+def _sync_removed_source_items(
+    adapter: Any,
+    db: DirectDbClient,
+    client: httpx.Client,
+    region: Dict[str, Any],
+    current_item_ids: List[int],
+    removal_check: Dict[str, Any],
+) -> None:
+    stored_item_ids = db.get_recent_source_item_ids(
+        adapter.source_key,
+        retention_days=DEFAULT_JOB_RETENTION_DAYS,
+    )
+    missing_item_ids = sorted(stored_item_ids - set(current_item_ids), reverse=True)
+    removal_check["candidates"] += len(missing_item_ids)
+
+    if len(missing_item_ids) > MAX_REMOVAL_CANDIDATES_PER_REGION:
+        removal_check["status"] = "guarded"
+        removal_check["deferred"] += len(missing_item_ids)
+        logger.warning(
+            "Deferred %s removal candidates for %s because the safety limit is %s",
+            len(missing_item_ids),
+            adapter.source_key,
+            MAX_REMOVAL_CANDIDATES_PER_REGION,
+        )
+        return
+
+    for item_id in missing_item_ids:
+        availability = adapter.check_item_availability(item_id, region, client)
+        removal_check["checked"] += 1
+        if availability == ITEM_AVAILABILITY_ACTIVE:
+            removal_check["active"] += 1
+            continue
+        if availability != ITEM_AVAILABILITY_REMOVED:
+            removal_check["unknown"] += 1
+            continue
+
+        result = db.delete_source_job(adapter.source_key, str(item_id))
+        removal_check["removed"] += int(result.get("deleted_sources", 0))
+        removal_check["deleted_jobs"] += int(result.get("deleted_jobs", 0))
+        removal_check["reconciled_jobs"] += int(result.get("reconciled_jobs", 0))
+
+    removal_check["status"] = "partial" if removal_check["unknown"] else "ok"
 
 
 def _record_failure(summary: Dict[str, Any], region: Dict[str, Any], msgid: Any, message: str) -> None:
