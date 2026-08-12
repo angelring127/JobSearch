@@ -349,6 +349,36 @@ class CrawlerRouteTests(unittest.TestCase):
         self.assertEqual(summary["removal_check"]["candidates"], 12)
         self.assertEqual(summary["removal_check"]["deferred"], 12)
 
+    def test_missing_source_item_guard_allows_exact_candidate_limit(self):
+        db = Mock()
+        db.create_crawl_run.return_value = 47
+        db.get_source.return_value = {"source_key": "ourvancouver", "enabled": True}
+        db.get_last_msgid.return_value = 200
+        db.get_recent_source_item_ids.return_value = set(range(100, 110)) | {200}
+        db.get_seen_item_ids.return_value = {200}
+
+        adapter = Mock()
+        adapter.source_key = "ourvancouver"
+        adapter.scan_recent_window = True
+        adapter.refresh_current_listing = False
+        adapter.verify_missing_items = True
+        adapter.get_regions.return_value = [
+            {"city": "Vancouver", "bbs": 1, "listing_url": "https://example.test/jobs"}
+        ]
+        adapter.get_new_item_ids.return_value = [200]
+        adapter.check_item_availability.return_value = "active"
+
+        with patch.dict(api.ADAPTERS, {"ourvancouver": adapter}):
+            summary = api.run_source_crawl("ourvancouver", max_posts_per_region=1, db=db)
+
+        self.assertEqual(adapter.check_item_availability.call_count, 10)
+        db.delete_source_job.assert_not_called()
+        self.assertEqual(summary["removal_check"]["status"], "ok")
+        self.assertEqual(summary["removal_check"]["candidates"], 10)
+        self.assertEqual(summary["removal_check"]["checked"], 10)
+        self.assertEqual(summary["removal_check"]["active"], 10)
+        self.assertEqual(summary["removal_check"]["deferred"], 0)
+
     def test_enabled_sources_runs_retention_cleanup_once(self):
         db = Mock()
         db.get_enabled_sources.return_value = []
