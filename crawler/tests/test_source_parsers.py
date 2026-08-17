@@ -51,6 +51,19 @@ class SourceParserTests(unittest.TestCase):
 
         self.assertIsNone(job)
 
+    def test_casmo_prefers_specific_gta_municipality_over_toronto(self):
+        job = parse_casmo_listing_job(
+            {
+                "title": "Hay Sushi North York, Toronto 서버 구인",
+                "articleElapsedTime": "5분 전",
+            },
+            "https://m.cafe.daum.net/skc67/8cBB/637174",
+            637174,
+            now=datetime(2026, 8, 17, 12, 0, 0),
+        )
+
+        self.assertEqual(job["region_hint"], "North York")
+
     def test_ourvancouver_listing_and_detail(self):
         listing = "dataid: 405974, dataid: 405973, dataid: 405974,"
         self.assertEqual(extract_ourvancouver_ids(listing, 405973), [405974])
