@@ -59,6 +59,7 @@ Related plan:
 | M22. Mobile List Detail Visibility | `DONE` | Mobile list view now keeps the selected card context without displaying the job-detail panel; map and desktop details remain available. |
 | M23. Source Removal Sync | `DONE` | Bounded deterministic deletion checks passed full crawler validation and independent checkpoint revalidation. |
 | M24. Casmo Community Source | `DONE` | Public-listing-only ingestion, strict title/location privacy gates, localized labels, and conservative cross-source dedupe passed full validation and independent revalidation. |
+| M25. Source Country Filter | `VERIFY` | Location search now lives in detailed filters; synchronized Korea/Japan/China source-country filtering is awaiting independent checkpoint review. |
 
 ## M1. Deployment Foundation
 
@@ -299,6 +300,15 @@ Goal: add the public Casmo Korean Canadian job listing without bypassing member-
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M24-01 | M | `DONE` | Add a bounded public-listing-only Casmo adapter, strict geography/privacy filters, localized labels, source registration, and cross-source duplicate coverage. | The final 97-test crawler suite, Python compile, shell syntax, frontend lint/build, and diff checks pass. The idempotent local migration registers one enabled source; a bounded live public-API read made no detail requests, and the local Codex Bridge returned a grounded North York business classification. Independent review found no Critical/High/Medium defects, and focused GTA-region remediation revalidation passed. |
+
+## M25. Source Country Filter and Advanced Location Search
+
+Goal: prioritize source-country filtering in the compact discovery surface while
+keeping Canadian location navigation available through detailed filters.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M25-01 | M | `VERIFY` | Replace prominent region controls with a synchronized source-country select, move city/address search into detailed filters, and filter public APIs across all raw sources of each representative job. | Frontend lint/build, live valid/invalid route checks, all-locale labels, filtered requests, empty state, 320-1440px responsiveness, landscape, reduced-motion, and zero-console-error browser checks pass; independent checkpoint review remains. |
 
 ## Progress Update Rules
 

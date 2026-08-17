@@ -1,4 +1,5 @@
 import type { JobSource } from '@/lib/api';
+import type { SourceCountry } from '@/lib/source-countries';
 
 export const LOCALES = ['ko', 'en', 'ja', 'zh'] as const;
 
@@ -45,8 +46,10 @@ const ko = {
   noLocation: '캐나다 내에서 일치하는 지역을 찾지 못했습니다.',
   locationLoadError: '지역을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.',
   locationResults: '지역 검색 결과',
+  sourceCountry: '구인 출처 국가',
+  sourceCountryHint: '근무지는 모두 캐나다이며, 구인 사이트 커뮤니티 기준입니다.',
   filters: '상세 필터',
-  filterHint: '직종 · 시급 · 반경',
+  filterHint: '지역 · 직종 · 시급 · 반경',
   filterDescription: '조건을 조정해 결과를 좁혀보세요.',
   reset: '초기화',
   category: '직종',
@@ -115,7 +118,9 @@ const en: Record<MessageKey, string> = {
   cityHint: 'Cities use a 50 km radius; Canada shows nationwide results.', locationSearch: 'Search by location',
   locationPlaceholder: 'City or area (for example, Vancouver, BC)', searching: 'Searching', search: 'Search',
   noLocation: 'No matching location was found in Canada.', locationLoadError: 'Could not load locations. Please try again shortly.',
-  locationResults: 'Location search results', filters: 'More filters', filterHint: 'Role · pay · radius',
+  locationResults: 'Location search results', sourceCountry: 'Job-source country',
+  sourceCountryHint: 'All workplaces are in Canada; this filters by the job-site community.',
+  filters: 'More filters', filterHint: 'Location · role · pay · radius',
   filterDescription: 'Adjust the criteria to narrow the results.', reset: 'Reset', category: 'Role', hourlyWage: 'Hourly pay (CAD)',
   minimumWage: 'Minimum hourly pay', maximumWage: 'Maximum hourly pay', minimum: 'Minimum', maximum: 'Maximum',
   radius: 'Radius (km)', radiusExample: 'For example, 5', allCategories: 'All roles', restaurant: 'Restaurant / cafe',
@@ -144,7 +149,9 @@ const ja: Record<MessageKey, string> = {
   cityHint: '都市は中心から50km圏内、カナダ全土は全国の求人が対象です。', locationSearch: '地域を検索',
   locationPlaceholder: '都市または地域（例：Vancouver, BC）', searching: '検索中', search: '検索',
   noLocation: 'カナダ国内で一致する地域が見つかりませんでした。', locationLoadError: '地域を読み込めませんでした。しばらくしてから再度お試しください。',
-  locationResults: '地域の検索結果', filters: '詳細フィルター', filterHint: '職種・時給・範囲',
+  locationResults: '地域の検索結果', sourceCountry: '求人サイトの国',
+  sourceCountryHint: '勤務地はすべてカナダで、求人サイトのコミュニティ別に絞り込みます。',
+  filters: '詳細フィルター', filterHint: '地域・職種・時給・範囲',
   filterDescription: '条件を調整して結果を絞り込みます。', reset: 'リセット', category: '職種', hourlyWage: '時給（CAD）',
   minimumWage: '最低時給', maximumWage: '最高時給', minimum: '最低', maximum: '最高', radius: '範囲（km）', radiusExample: '例：5',
   allCategories: 'すべての職種', restaurant: 'レストラン / カフェ', retail: '小売', hospitality: 'ホテル / 観光',
@@ -173,7 +180,8 @@ const zh: Record<MessageKey, string> = {
   cityHint: '城市按中心50公里范围显示；加拿大选项显示全国职位。', locationSearch: '搜索地点',
   locationPlaceholder: '城市或地区（例如 Vancouver, BC）', searching: '搜索中', search: '搜索',
   noLocation: '在加拿大境内未找到匹配地点。', locationLoadError: '无法加载地点，请稍后重试。', locationResults: '地点搜索结果',
-  filters: '详细筛选', filterHint: '职位 · 时薪 · 范围', filterDescription: '调整条件以缩小结果范围。', reset: '重置',
+  sourceCountry: '招聘网站国别', sourceCountryHint: '工作地点均在加拿大；此项按招聘网站社群筛选。',
+  filters: '详细筛选', filterHint: '地区 · 职位 · 时薪 · 范围', filterDescription: '调整条件以缩小结果范围。', reset: '重置',
   category: '职位类别', hourlyWage: '时薪（CAD）', minimumWage: '最低时薪', maximumWage: '最高时薪', minimum: '最低', maximum: '最高',
   radius: '范围（公里）', radiusExample: '例如 5', allCategories: '所有类别', restaurant: '餐厅 / 咖啡馆', retail: '零售',
   hospitality: '酒店 / 旅游', warehouse: '仓库 / 物流', construction: '建筑', cleaning: '清洁', other: '其他',
@@ -239,6 +247,13 @@ const SOURCE_LABELS: Record<Locale, Record<string, string>> = {
     vanchosun: '温哥华朝鲜日报',
     sinojobs: '加华招聘',
   },
+};
+
+const SOURCE_COUNTRY_LABELS: Record<Locale, Record<'all' | SourceCountry, string>> = {
+  ko: { all: '전체 구인 사이트', kr: '한국계 구인', jp: '일본계 구인', cn: '중국계 구인' },
+  en: { all: 'All job sources', kr: 'Korean sources', jp: 'Japanese sources', cn: 'Chinese sources' },
+  ja: { all: 'すべての求人サイト', kr: '韓国系の求人', jp: '日本系の求人', cn: '中国系の求人' },
+  zh: { all: '所有招聘网站', kr: '韩语社群招聘', jp: '日语社群招聘', cn: '中文社群招聘' },
 };
 
 export function isLocale(value: string | null): value is Locale {
@@ -330,6 +345,10 @@ export function getSourceName(job: JobSource, locale: Locale): string {
   } catch {
     return '';
   }
+}
+
+export function getSourceCountryLabel(value: SourceCountry | undefined, locale: Locale): string {
+  return SOURCE_COUNTRY_LABELS[locale][value ?? 'all'];
 }
 
 export function getCategoryLabel(value: string | null | undefined, locale: Locale): string {

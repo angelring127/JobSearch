@@ -7,23 +7,24 @@ import JobDetail from '@/components/JobDetail';
 import JobList from '@/components/JobList';
 import LanguageSelector from '@/components/LanguageSelector';
 import Map from '@/components/Map';
-import SearchBar from '@/components/SearchBar';
+import SourceCountrySelect from '@/components/SourceCountrySelect';
 import { getCityJobCounts, JobSource, type CityJobCounts } from '@/lib/api';
 import { CITY_PRESETS } from '@/lib/city-presets';
 import {
   formatNumber,
-  getCompactCityLabel,
   isLocale,
   LOCALE_TAGS,
   t,
   type Locale,
 } from '@/lib/i18n';
+import type { SourceCountry } from '@/lib/source-countries';
 
 type Filters = {
   wageMin?: number;
   wageMax?: number;
   category?: string;
   radius?: number;
+  sourceCountry?: SourceCountry;
 };
 
 type MobileView = 'list' | 'map';
@@ -72,7 +73,7 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
   useEffect(() => {
     const controller = new AbortController();
 
-    getCityJobCounts(controller.signal)
+    getCityJobCounts(filters.sourceCountry, controller.signal)
       .then((response) => {
         if (!response.success || !response.data) {
           throw new Error(response.error?.message ?? 'City count request failed');
@@ -87,14 +88,22 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
       });
 
     return () => controller.abort();
-  }, []);
+  }, [filters.sourceCountry]);
 
   const handleJobsUpdate = useCallback((newJobs: JobSource[]) => {
     setJobs(newJobs);
   }, []);
 
   const handleFilterChange = useCallback((newFilters: Filters) => {
-    setFilters(newFilters);
+    setFilters((current) => ({
+      ...newFilters,
+      sourceCountry: current.sourceCountry,
+    }));
+  }, []);
+
+  const handleSourceCountryChange = useCallback((sourceCountry?: SourceCountry) => {
+    setFilters((current) => ({ ...current, sourceCountry }));
+    setSelectedJob(null);
   }, []);
 
   const handleMapCenterChange = useCallback((center: [number, number], zoom?: number) => {
@@ -137,23 +146,14 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
           <span className="wordmark__mark" aria-hidden="true">JM</span>
           <span className="wordmark__text">JobMap</span>
         </div>
-        <label className="header-region-select">
-          <span className="sr-only">{t(locale, 'cityQuick')}</span>
-          <select
-            value={selectedCity}
-            onChange={(event) => handleCityChange(event.target.value)}
-            aria-label={t(locale, 'cityQuick')}
-            aria-busy={cityCounts === null && !cityCountError}
-          >
-            <option value="" disabled>{t(locale, 'chooseCity')}</option>
-            {CITY_PRESETS.map((city) => (
-              <option key={city.value} value={city.value}>
-                {getCompactCityLabel(city.value, locale, city.label)}
-                {cityCounts ? ` (${formatNumber(cityCounts[city.value] ?? 0, locale)}${t(locale, 'jobsUnit')})` : ''}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="header-source-country">
+          <SourceCountrySelect
+            value={filters.sourceCountry}
+            onChange={handleSourceCountryChange}
+            locale={locale}
+            compact
+          />
+        </div>
         <div className="app-bar__actions">
           <div className="app-bar__status" aria-live="polite">
             <span className="status-dot" aria-hidden="true" />
@@ -176,17 +176,23 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
           </div>
 
           <div className="search-section">
-            <SearchBar
-              onLocationSelect={handleLocationSelect}
-              selectedCity={selectedCity}
-              cityCounts={cityCounts}
-              cityCountError={cityCountError}
-              onCityChange={handleCityChange}
+            <SourceCountrySelect
+              value={filters.sourceCountry}
+              onChange={handleSourceCountryChange}
               locale={locale}
             />
           </div>
 
-          <FilterBar filters={filters} onFilterChange={handleFilterChange} locale={locale} />
+          <FilterBar
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onLocationSelect={handleLocationSelect}
+            selectedCity={selectedCity}
+            cityCounts={cityCounts}
+            cityCountError={cityCountError}
+            onCityChange={handleCityChange}
+            locale={locale}
+          />
 
           <div className="job-list-region">
             <JobList

@@ -1,4 +1,5 @@
 // API client for JobMap Next.js route handlers
+import type { SourceCountry } from '@/lib/source-countries';
 
 export interface JobSource {
   id: number;
@@ -45,6 +46,7 @@ export interface ViewportParams {
   wageMin?: number;
   wageMax?: number;
   category?: string;
+  sourceCountry?: SourceCountry;
   limit?: number;
 }
 
@@ -55,15 +57,20 @@ export interface NearbyParams {
   wageMin?: number;
   wageMax?: number;
   category?: string;
+  sourceCountry?: SourceCountry;
   limit?: number;
 }
 
 export type CityJobCounts = Record<string, number>;
 
 export async function getCityJobCounts(
+  sourceCountry?: SourceCountry,
   signal?: AbortSignal
 ): Promise<ApiResponse<CityJobCounts>> {
-  const response = await fetch('/api/jobs/city-counts', { signal });
+  const queryParams = new URLSearchParams();
+  if (sourceCountry) queryParams.set('sourceCountry', sourceCountry);
+  const query = queryParams.toString();
+  const response = await fetch(`/api/jobs/city-counts${query ? `?${query}` : ''}`, { signal });
 
   if (!response.ok) {
     throw new Error(`API error: ${response.statusText}`);
@@ -94,6 +101,9 @@ export async function getJobsByViewport(
   if (params.category) {
     queryParams.append('category', params.category);
   }
+  if (params.sourceCountry) {
+    queryParams.append('sourceCountry', params.sourceCountry);
+  }
   if (params.limit !== undefined) {
     queryParams.append('limit', params.limit.toString());
   }
@@ -123,6 +133,9 @@ export async function getJobsByNearby(
   }
   if (params.category) {
     queryParams.append('category', params.category);
+  }
+  if (params.sourceCountry) {
+    queryParams.append('sourceCountry', params.sourceCountry);
   }
   if (params.limit !== undefined) {
     queryParams.append('limit', params.limit.toString());

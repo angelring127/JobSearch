@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import SearchBar from '@/components/SearchBar';
+import type { CityJobCounts } from '@/lib/api';
 import { getCategoryLabel, t, type Locale } from '@/lib/i18n';
 
 interface FilterBarProps {
@@ -11,6 +13,11 @@ interface FilterBarProps {
     radius?: number;
   };
   onFilterChange: (filters: FilterBarProps['filters']) => void;
+  onLocationSelect: (center: [number, number], zoom?: number) => void;
+  selectedCity: string;
+  cityCounts: CityJobCounts | null;
+  cityCountError: boolean;
+  onCityChange: (value: string) => void;
   locale: Locale;
 }
 
@@ -18,7 +25,16 @@ const CATEGORIES = [
   '', 'restaurant', 'retail', 'hospitality', 'warehouse', 'construction', 'cleaning', 'other',
 ];
 
-export default function FilterBar({ filters, onFilterChange, locale }: FilterBarProps) {
+export default function FilterBar({
+  filters,
+  onFilterChange,
+  onLocationSelect,
+  selectedCity,
+  cityCounts,
+  cityCountError,
+  onCityChange,
+  locale,
+}: FilterBarProps) {
   const [wageMin, setWageMin] = useState(filters.wageMin?.toString() || '');
   const [wageMax, setWageMax] = useState(filters.wageMax?.toString() || '');
   const [category, setCategory] = useState(filters.category || '');
@@ -58,6 +74,17 @@ export default function FilterBar({ filters, onFilterChange, locale }: FilterBar
           <button type="button" className="text-button" onClick={handleReset} disabled={activeFilterCount === 0}>
             {t(locale, 'reset')}
           </button>
+        </div>
+
+        <div className="filter-panel__location">
+          <SearchBar
+            onLocationSelect={onLocationSelect}
+            selectedCity={selectedCity}
+            cityCounts={cityCounts}
+            cityCountError={cityCountError}
+            onCityChange={onCityChange}
+            locale={locale}
+          />
         </div>
 
         <div className="field-group">

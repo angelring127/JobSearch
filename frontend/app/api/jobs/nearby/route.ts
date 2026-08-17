@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/server/db';
+import { isSourceCountry, SOURCE_KEYS_BY_COUNTRY } from '@/lib/source-countries';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,6 +50,8 @@ export async function GET(request: Request) {
   const wageMax = intParam(searchParams, 'wageMax');
   const limit = intParam(searchParams, 'limit', 100);
   const category = searchParams.get('category');
+  const rawSourceCountry = searchParams.get('sourceCountry');
+  const sourceCountry = rawSourceCountry || null;
 
   if (
     lat === null || lng === null || radius === null ||
@@ -71,7 +74,8 @@ export async function GET(request: Request) {
   if (
     (wageMin !== null && wageMin !== undefined && (!Number.isFinite(wageMin) || wageMin < 0)) ||
     (wageMax !== null && wageMax !== undefined && (!Number.isFinite(wageMax) || wageMax < 0)) ||
-    limit === null || !Number.isFinite(limit) || limit < 1 || limit > 500
+    limit === null || !Number.isFinite(limit) || limit < 1 || limit > 500 ||
+    (sourceCountry !== null && !isSourceCountry(sourceCountry))
   ) {
     return NextResponse.json(
       {
@@ -103,6 +107,24 @@ export async function GET(request: Request) {
     values.push(category);
     filters.push(`j.category = $${values.length}`);
   }
+
+  let sourceKeysIndex: number | null = null;
+  if (sourceCountry && isSourceCountry(sourceCountry)) {
+    values.push([...SOURCE_KEYS_BY_COUNTRY[sourceCountry]]);
+    sourceKeysIndex = values.length;
+    filters.push(
+      `EXISTS (
+        SELECT 1
+        FROM job_sources country_source
+        WHERE country_source.job_id = j.id
+          AND country_source.source_key = ANY($${sourceKeysIndex}::text[])
+      )`
+    );
+  }
+
+  const selectedSourceFilter = sourceKeysIndex
+    ? `AND source.source_key = ANY($${sourceKeysIndex}::text[])`
+    : '';
 
   values.push(limit);
 
@@ -139,6 +161,7 @@ export async function GET(request: Request) {
           FROM job_sources source
           LEFT JOIN crawler_sources crawler_source USING (source_key)
           WHERE source.job_id = j.id
+            ${selectedSourceFilter}
           ORDER BY (source.id = j.primary_source_id) DESC, source.created_at DESC
           LIMIT 1
         ) js ON TRUE

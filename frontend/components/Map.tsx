@@ -5,6 +5,7 @@ import { Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { getJobsByViewport, JobSource, ViewportParams } from '@/lib/api';
 import { getJobTitle, t, type Locale } from '@/lib/i18n';
+import type { SourceCountry } from '@/lib/source-countries';
 
 type LocationError = 'permission' | 'unavailable' | null;
 
@@ -16,6 +17,7 @@ interface MapProps {
     wageMax?: number;
     category?: string;
     radius?: number;
+    sourceCountry?: SourceCountry;
   };
   selectedJob?: JobSource | null;
   onJobsUpdate?: (jobs: JobSource[]) => void;
@@ -180,6 +182,7 @@ export default function Map({
         wageMin: filters?.wageMin,
         wageMax: filters?.wageMax,
         category: filters?.category,
+        sourceCountry: filters?.sourceCountry,
       };
 
       const response = await getJobsByViewport(params, controller.signal);
