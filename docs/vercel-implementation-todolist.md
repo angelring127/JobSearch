@@ -59,7 +59,7 @@ Related plan:
 | M22. Mobile List Detail Visibility | `DONE` | Mobile list view now keeps the selected card context without displaying the job-detail panel; map and desktop details remain available. |
 | M23. Source Removal Sync | `DONE` | Bounded deterministic deletion checks passed full crawler validation and independent checkpoint revalidation. |
 | M24. Casmo Community Source | `DONE` | Public-listing-only ingestion, strict title/location privacy gates, localized labels, and conservative cross-source dedupe passed full validation and independent revalidation. |
-| M25. Source Country Filter | `VERIFY` | The major-city shortcut remains in place; only free-form location search moved into detailed filters, with source-country filtering in its former position. |
+| M25. Source Country Filter | `DONE` | The major-city shortcut remains in place; only free-form location search moved into detailed filters, with source-country filtering in its former position. |
 
 ## M1. Deployment Foundation
 
@@ -308,7 +308,7 @@ keeping Canadian location navigation available through detailed filters.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M25-01 | M | `VERIFY` | Keep the major-city shortcut in its existing desktop/mobile positions, replace only the free-form location-search position with a source-country select, move free-form search into detailed filters, and filter public APIs across all raw sources of each representative job. | Corrected placement passes frontend lint, live filtered requests, 320-1440px and landscape overflow checks, and zero-console-error browser checks; production build and independent checkpoint review remain. |
+| M25-01 | M | `DONE` | Keep the major-city shortcut in its existing desktop/mobile positions, replace only the free-form location-search position with a source-country select, move free-form search into detailed filters, and filter public APIs across all raw sources of each representative job. | Frontend lint/build, valid/invalid route checks, filtered requests, all-locale labels, 320-1440px and landscape overflow checks, and zero-console-error browser checks pass. The independent review confirmed placement, source mapping, parameterized all-source matching, and accessibility. Its narrow-screen autocomplete concern was reproduced at 320px: the panel scroll area exposed and selected the last result successfully before switching to the map. |
 
 ## Progress Update Rules
 
