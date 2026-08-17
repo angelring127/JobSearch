@@ -58,6 +58,7 @@ Related plan:
 | M21. Compact Mobile Search | `DONE` | Mobile density work passed independent review and local/preview/production validation, then shipped to the production domain. |
 | M22. Mobile List Detail Visibility | `DONE` | Mobile list view now keeps the selected card context without displaying the job-detail panel; map and desktop details remain available. |
 | M23. Source Removal Sync | `DONE` | Bounded deterministic deletion checks passed full crawler validation and independent checkpoint revalidation. |
+| M24. Casmo Community Source | `VERIFY` | Public-listing-only adapter, strict title filtering, source registration, localized labels, and cross-source dedupe coverage are implemented; full validation and independent review are in progress. |
 
 ## M1. Deployment Foundation
 
@@ -290,6 +291,14 @@ Goal: promptly remove definitively deleted source posts without adding a full-po
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M23-01 | M | `DONE` | Compare recent Our Vancouver listing IDs with stored IDs, verify only bounded missing candidates, and remove confirmed deleted sources while preserving transient failures. | Focused tests passed (26), the full crawler suite passed (83), Python compilation and `git diff --check` passed, and a bounded live read found 1,189 recent listing IDs with `405995` absent while its detail endpoint classified as removed. Independent review found no Critical/High/Medium defects; the exact-10 guard boundary test closed the sole actionable Low note, and final revalidation passed. |
+
+## M24. Casmo Community Source
+
+Goal: add the public Casmo Korean Canadian job listing without bypassing member-only content or creating unsafe cross-source duplicates.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M24-01 | M | `VERIFY` | Add a bounded public-listing-only Casmo adapter, strict geography/privacy filters, localized labels, source registration, and cross-source duplicate coverage. | The 96-test crawler suite, Python compile, shell syntax, frontend lint/build, and diff checks pass. The idempotent local migration registers one enabled source; a bounded live public-API read made no detail requests, and the local Codex Bridge returned a grounded North York business classification. Independent checkpoint review remains. |
 
 ## Progress Update Rules
 

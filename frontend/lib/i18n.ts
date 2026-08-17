@@ -210,6 +210,7 @@ const SOURCE_LABELS: Record<Locale, Record<string, string>> = {
   ko: {
     jpcanada: 'JP 캐나다',
     ourvancouver: '우벤유',
+    casmo: '캐스모',
     jinzaicanada: '인재 캐나다',
     vanchosun: '밴쿠버 조선일보',
     sinojobs: '시노잡스 캐나다',
@@ -217,6 +218,7 @@ const SOURCE_LABELS: Record<Locale, Record<string, string>> = {
   en: {
     jpcanada: 'JP Canada',
     ourvancouver: 'Our Vancouver',
+    casmo: 'Casmo Canada',
     jinzaicanada: 'Jinzai Canada',
     vanchosun: 'Vancouver Chosun',
     sinojobs: 'Sinojobs Canada',
@@ -224,6 +226,7 @@ const SOURCE_LABELS: Record<Locale, Record<string, string>> = {
   ja: {
     jpcanada: 'JPカナダ',
     ourvancouver: 'アワー・バンクーバー',
+    casmo: 'カスモ・カナダ',
     jinzaicanada: '人材カナダ',
     vanchosun: 'バンクーバー朝鮮日報',
     sinojobs: 'シノジョブズ・カナダ',
@@ -231,6 +234,7 @@ const SOURCE_LABELS: Record<Locale, Record<string, string>> = {
   zh: {
     jpcanada: 'JP加拿大',
     ourvancouver: '我们的温哥华',
+    casmo: 'Casmo 加拿大',
     jinzaicanada: '加拿大人才网',
     vanchosun: '温哥华朝鲜日报',
     sinojobs: '加华招聘',

@@ -83,21 +83,24 @@ class CrawlerRouteTests(unittest.TestCase):
             trigger_type="manual",
         )
 
-    def test_scheduled_source_limit_uses_ourvancouver_override(self):
+    def test_scheduled_source_limit_uses_source_overrides(self):
         with patch.dict(
             os.environ,
             {
                 "CRAWLER_MAX_POSTS_PER_REGION": "4",
                 "OURVANCOUVER_MAX_POSTS_PER_REGION": "80",
+                "CASMO_MAX_POSTS_PER_REGION": "25",
             },
         ):
             self.assertEqual(api._scheduled_source_limit("ourvancouver"), 80)
+            self.assertEqual(api._scheduled_source_limit("casmo"), 25)
             self.assertEqual(api._scheduled_source_limit("vanchosun"), 4)
 
     def test_enabled_sources_applies_each_scheduled_source_limit(self):
         db = Mock()
         db.get_enabled_sources.return_value = [
             {"source_key": "ourvancouver"},
+            {"source_key": "casmo"},
             {"source_key": "vanchosun"},
         ]
         db.delete_expired_jobs.return_value = {
@@ -119,6 +122,7 @@ class CrawlerRouteTests(unittest.TestCase):
                 {
                     "CRAWLER_MAX_POSTS_PER_REGION": "4",
                     "OURVANCOUVER_MAX_POSTS_PER_REGION": "80",
+                    "CASMO_MAX_POSTS_PER_REGION": "25",
                 },
             ),
             patch.object(api, "DirectDbClient", return_value=db),
@@ -138,7 +142,7 @@ class CrawlerRouteTests(unittest.TestCase):
 
         self.assertEqual(
             [call.kwargs["max_posts_per_region"] for call in run_source.call_args_list],
-            [80, 4],
+            [80, 25, 4],
         )
 
     def test_refresh_source_preserves_current_listing_order(self):

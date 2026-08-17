@@ -126,6 +126,10 @@ Expected behavior:
 - Reuse the existing Python parsing logic from `crawler/src/crawler.py`.
 - For Our Vancouver, reject obvious advertisements and locationless posts before
   geocoding; use Codex Bridge only for ambiguous job/location text when configured.
+- For Casmo, read only the anonymous public listing metadata, require an explicit
+  Canadian municipality in the title, and never request the member-only article body.
+  Keep raw Casmo and Our Vancouver source rows separate and reuse conservative
+  representative-job dedupe for likely cross-posts.
 - Geocode grounded addresses, businesses, or neighborhoods. If a reviewed precise
   location cannot be resolved, keep it off the public map instead of falling back
   to a city-center marker.
@@ -201,6 +205,7 @@ DATABASE_URL
 CRON_SECRET
 CRAWLER_MAX_POSTS_PER_REGION
 OURVANCOUVER_MAX_POSTS_PER_REGION
+CASMO_MAX_POSTS_PER_REGION
 ADMIN_PASSWORD
 SESSION_SECRET
 CRAWLER_SERVICE_URL
@@ -217,11 +222,12 @@ Notes:
 - `CRON_SECRET`: secret used to authorize cron-triggered crawler requests.
 - `CRAWLER_MAX_POSTS_PER_REGION`: conservative per-region batch size for crawler runs.
 - `OURVANCOUVER_MAX_POSTS_PER_REGION`: source-specific scheduled batch size for the high-volume Our Vancouver backlog; explicit admin-run limits still take precedence.
+- `CASMO_MAX_POSTS_PER_REGION`: source-specific scheduled batch size for the public Casmo listing; the default is 25 and explicit admin-run limits still take precedence.
 - `ADMIN_PASSWORD`: single v1 admin password.
 - `SESSION_SECRET`: signing secret for the admin session cookie.
 - `CRAWLER_SERVICE_URL`: crawler service base URL for admin manual runs. Local default is `http://localhost:8001`; Vercel default can be inferred from `VERCEL_URL` and `/crawler`.
 - `NOMINATIM_URL`: optional; default can remain OpenStreetMap Nominatim.
-- `CODEX_BRIDGE_*`: server-only settings for ambiguous Our Vancouver post analysis
+- `CODEX_BRIDGE_*`: server-only settings for ambiguous Our Vancouver and public-title-only Casmo post analysis
   and bounded Korean/English/Japanese/Chinese title-translation batches. Without
   them, the quality gate fails closed for unresolved posts and public titles fall
   back to their original source text.

@@ -80,6 +80,8 @@ def _canonical_region(value: str, default: str) -> str:
         ("whitehorse", "Whitehorse"),
         ("코퀴틀람", "Coquitlam"),
         ("coquitlam", "Coquitlam"),
+        ("리치몬드힐", "Richmond Hill"),
+        ("richmond hill", "Richmond Hill"),
         ("리치몬드", "Richmond"),
         ("richmond", "Richmond"),
         ("화이트록", "White Rock"),
@@ -99,6 +101,42 @@ def _canonical_region(value: str, default: str) -> str:
         ("delta", "Delta"),
         ("토론토", "Toronto"),
         ("toronto", "Toronto"),
+        ("노스욕", "North York"),
+        ("north york", "North York"),
+        ("쏜힐", "Thornhill"),
+        ("손힐", "Thornhill"),
+        ("thornhill", "Thornhill"),
+        ("스카보로", "Scarborough"),
+        ("scarborough", "Scarborough"),
+        ("브램턴", "Brampton"),
+        ("brampton", "Brampton"),
+        ("본 지역", "Vaughan"),
+        ("본시", "Vaughan"),
+        ("vaughan", "Vaughan"),
+        ("워털루", "Waterloo"),
+        ("waterloo", "Waterloo"),
+        ("키치너", "Kitchener"),
+        ("kitchener", "Kitchener"),
+        ("캠브리지", "Cambridge"),
+        ("cambridge", "Cambridge"),
+        ("피커링", "Pickering"),
+        ("pickering", "Pickering"),
+        ("에이젝스", "Ajax"),
+        ("ajax", "Ajax"),
+        ("휘트비", "Whitby"),
+        ("whitby", "Whitby"),
+        ("오샤와", "Oshawa"),
+        ("oshawa", "Oshawa"),
+        ("벌링턴", "Burlington"),
+        ("burlington", "Burlington"),
+        ("해밀턴", "Hamilton"),
+        ("hamilton", "Hamilton"),
+        ("구엘프", "Guelph"),
+        ("guelph", "Guelph"),
+        ("오로라", "Aurora"),
+        ("aurora", "Aurora"),
+        ("뉴마켓", "Newmarket"),
+        ("newmarket", "Newmarket"),
         ("오타와", "Ottawa"),
         ("ottawa", "Ottawa"),
         ("캘거리", "Calgary"),
@@ -119,7 +157,6 @@ def _canonical_region(value: str, default: str) -> str:
         ("markham", "Markham"),
         ("오크빌", "Oakville"),
         ("oakville", "Oakville"),
-        ("vaughan", "Vaughan"),
         ("레지나", "Regina"),
         ("regina", "Regina"),
         ("새스커툰", "Saskatoon"),
@@ -232,6 +269,64 @@ def parse_ourvancouver_job(html: str, source_url: str, item_id: int) -> Optional
         "posted_at": parse_ourvancouver_posted_at(html),
         "_content": content,
     }
+
+
+def parse_casmo_listing_job(
+    article: Dict,
+    source_url: str,
+    item_id: int,
+    now: Optional[datetime] = None,
+) -> Optional[Dict]:
+    title = _clean_text(html_lib.unescape(str(article.get("title") or "")))
+    if not title:
+        return None
+
+    region_hint = _canonical_region(title, "")
+    if not region_hint:
+        return None
+    location_text = _location_text(title, region_hint)
+    wage_min, wage_max = parse_wage(title)
+
+    return {
+        "msgid": item_id,
+        "source_url": source_url,
+        "title": title,
+        "wage_min": wage_min,
+        "wage_max": wage_max,
+        "category": parse_category(title, title),
+        "region_hint": region_hint,
+        "location_text": location_text,
+        "location_kind": "street_address" if location_text else "none",
+        "posted_at": _parse_daum_listing_time(
+            str(article.get("articleElapsedTime") or ""),
+            now or datetime.now(),
+        ),
+        "_content": title,
+    }
+
+
+def _parse_daum_listing_time(value: str, now: datetime) -> Optional[str]:
+    normalized = _clean_text(value)
+    if normalized == "방금":
+        return now.replace(microsecond=0).isoformat()
+
+    relative = re.fullmatch(r"(\d+)\s*(초|분|시간|일)\s*전", normalized)
+    if relative:
+        amount = int(relative.group(1))
+        unit = relative.group(2)
+        delta = {
+            "초": timedelta(seconds=amount),
+            "분": timedelta(minutes=amount),
+            "시간": timedelta(hours=amount),
+            "일": timedelta(days=amount),
+        }[unit]
+        return (now - delta).replace(microsecond=0).isoformat()
+
+    posted_date = _posted_datetime(
+        normalized,
+        [(r"^(\d{2}\.\d{2}\.\d{2})$", "%y.%m.%d")],
+    )
+    return posted_date
 
 
 def extract_jinzaicanada_ids(html: str, last_seen_id: int) -> List[int]:

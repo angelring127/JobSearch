@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import date, datetime, timedelta
+import html as html_lib
 import re
 import time
 from typing import Any, Callable, Dict, List, Optional
@@ -8,12 +9,18 @@ from zoneinfo import ZoneInfo
 import httpx
 
 from crawler import crawl_bbs_listing, crawl_job_post
-from job_quality import curate_ourvancouver_job
+from job_quality import (
+    CodexBridgeJobAnalyzer,
+    JOB_INTENT_PATTERN,
+    NON_JOB_TITLE_PATTERNS,
+    curate_ourvancouver_job,
+)
 from source_parsers import (
     extract_jinzaicanada_ids,
     extract_sinojobs_ids,
     extract_vanchosun_ids,
     parse_jinzaicanada_job,
+    parse_casmo_listing_job,
     parse_ourvancouver_job,
     parse_ourvancouver_posted_at,
     parse_sinojobs_job,
@@ -26,6 +33,8 @@ SINOJOBS_REQUEST_INTERVAL = 20.0
 OURVANCOUVER_LISTING_REQUEST_INTERVAL = 0.2
 OURVANCOUVER_RETENTION_DAYS = 14
 OURVANCOUVER_MAX_LISTING_PAGES = 200
+CASMO_LISTING_REQUEST_INTERVAL = 0.2
+CASMO_MAX_LISTING_PAGES = 20
 
 ITEM_AVAILABILITY_ACTIVE = "active"
 ITEM_AVAILABILITY_REMOVED = "removed"
@@ -220,6 +229,210 @@ class OurVancouverAdapter(CrawlerAdapter):
             time.sleep(PUBLIC_SOURCE_REQUEST_INTERVAL)
 
 
+class _PrecomputedJobAnalyzer:
+    def __init__(self, analysis: Dict[str, Any]):
+        self.analysis = analysis
+
+    def analyze(self, title: str, content: str) -> Dict[str, Any]:
+        del title, content
+        return self.analysis
+
+
+class CasmoAdapter(CrawlerAdapter):
+    source_key = "casmo"
+    display_name = "캐스모"
+    scan_recent_window = True
+    listing_url = "https://m.cafe.daum.net/skc67/8cBB?"
+    listing_api_url = "https://m.cafe.daum.net/api/v1/common-articles"
+    detail_url = "https://m.cafe.daum.net/skc67/8cBB/{item_id}"
+
+    def __init__(
+        self,
+        now_provider: Optional[Callable[[], datetime]] = None,
+        max_listing_pages: int = CASMO_MAX_LISTING_PAGES,
+        listing_request_interval: float = CASMO_LISTING_REQUEST_INTERVAL,
+        sleeper: Callable[[float], None] = time.sleep,
+        analyzer: Optional[Any] = None,
+    ):
+        self.now_provider = now_provider or (
+            lambda: datetime.now(ZoneInfo("Asia/Seoul")).replace(tzinfo=None)
+        )
+        self.max_listing_pages = max(1, max_listing_pages)
+        self.listing_request_interval = max(CASMO_LISTING_REQUEST_INTERVAL, listing_request_interval)
+        self.sleeper = sleeper
+        self.analyzer = analyzer if analyzer is not None else CodexBridgeJobAnalyzer.from_env()
+        self._articles: Dict[int, Dict[str, Any]] = {}
+        self._analysis_unavailable = False
+
+    def get_regions(self, db_client: Any) -> List[Dict[str, Any]]:
+        del db_client
+        return [{"city": "Canada", "bbs": 1, "listing_url": self.listing_url}]
+
+    def get_new_item_ids(self, region: Dict[str, Any], last_seen_id: int, client: httpx.Client) -> List[int]:
+        del last_seen_id
+        self._articles = {}
+        self._analysis_unavailable = False
+        after_depth = ""
+
+        for page in range(1, self.max_listing_pages + 1):
+            params = {
+                "grpid": "7rX",
+                "fldid": "8cBB",
+                "targetPage": page,
+                "pageSize": 20,
+            }
+            if after_depth:
+                params["afterBbsDepth"] = after_depth
+
+            try:
+                response = client.get(
+                    self.listing_api_url,
+                    params=params,
+                    headers={"Referer": region["listing_url"], "Accept": "application/json"},
+                )
+                response.raise_for_status()
+                payload = response.json()
+            finally:
+                self.sleeper(self.listing_request_interval)
+
+            raw_articles = payload.get("articles") if isinstance(payload, dict) else None
+            if not isinstance(raw_articles, list):
+                raise RuntimeError("Casmo listing API returned malformed articles")
+            if not raw_articles:
+                break
+
+            articles = _normalize_casmo_api_articles(raw_articles)
+            after_depth = str(articles[-1]["bbsDepth"])
+            for article in articles:
+                if _casmo_article_is_eligible(article):
+                    self._articles[int(article["dataid"])] = article
+
+        return list(self._articles)
+
+    def fetch_item(self, item_id: int, region: Dict[str, Any], client: httpx.Client) -> Optional[Dict[str, Any]]:
+        del region, client
+        article = self._articles.get(item_id)
+        if not article:
+            raise RuntimeError("Casmo listing metadata is unavailable for item %s" % item_id)
+
+        source_url = self.detail_url.format(item_id=item_id)
+        job = parse_casmo_listing_job(article, source_url, item_id, now=self.now_provider())
+        if not job:
+            return None
+
+        if job.get("location_kind") == "street_address":
+            return curate_ourvancouver_job(job)
+
+        if self._analysis_unavailable or self.analyzer is None:
+            raise RuntimeError("Casmo title analysis is unavailable; leaving item retryable")
+
+        title = str(job.get("title") or "")
+        analysis = self.analyzer.analyze(title, title)
+        if not analysis:
+            self._analysis_unavailable = True
+            raise RuntimeError("Casmo title analysis failed; leaving item retryable")
+        if not _casmo_analysis_is_valid(analysis, job):
+            self._analysis_unavailable = True
+            raise RuntimeError("Casmo title analysis was invalid; leaving item retryable")
+
+        return curate_ourvancouver_job(job, analyzer=_PrecomputedJobAnalyzer(analysis))
+
+
+def _normalize_casmo_api_articles(raw_articles: List[Any]) -> List[Dict[str, Any]]:
+    articles: List[Dict[str, Any]] = []
+    for raw in raw_articles:
+        if not isinstance(raw, dict):
+            raise RuntimeError("Casmo listing API returned a malformed article")
+        try:
+            item_id = int(raw["dataid"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RuntimeError("Casmo listing API article ID is missing") from exc
+        depth = str(raw.get("bbsDepth") or "").strip()
+        title = html_lib.unescape(str(raw.get("title") or "")).strip()
+        if not depth or not title:
+            raise RuntimeError("Casmo listing API article metadata is incomplete")
+        articles.append(
+            {
+                "dataid": item_id,
+                "title": title,
+                "articleElapsedTime": str(raw.get("articleElapsedTime") or "").strip(),
+                "bbsDepth": depth,
+                "headCont": str(raw.get("headCont") or "").strip(),
+            }
+        )
+    return articles
+
+
+def _casmo_article_is_eligible(article: Dict[str, Any]) -> bool:
+    title = str(article.get("title") or "").strip()
+    head = str(article.get("headCont") or "").strip()
+    if not title or head == "구직" or "구직" in title:
+        return False
+    if re.search(r"일자리\s*(?:를\s*)?(?:찾|구하)|취업\s*(?:자리\s*)?(?:찾|원하)", title):
+        return False
+    if not JOB_INTENT_PATTERN.search(title):
+        return False
+    if any(pattern.search(title) for pattern in NON_JOB_TITLE_PATTERNS):
+        return False
+    if re.search(r"자원\s*봉사|volunteer", title, re.IGNORECASE):
+        return False
+    if re.search(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", title):
+        return False
+    if re.search(r"(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}", title):
+        return False
+    return True
+
+
+def _casmo_analysis_is_valid(analysis: Any, job: Dict[str, Any]) -> bool:
+    if not isinstance(analysis, dict) or not isinstance(analysis.get("is_job_posting"), bool):
+        return False
+    if analysis["is_job_posting"] is False:
+        return True
+
+    location_kind = str(analysis.get("location_kind") or "")
+    if location_kind in {"city_only", "none"}:
+        return True
+    if location_kind not in {"street_address", "business_or_landmark", "neighborhood"}:
+        return False
+
+    location_query = str(analysis.get("location_query") or "").strip()
+    title = str(job.get("title") or "")
+    region_hint = str(job.get("region_hint") or "").strip()
+    analysis_region = str(analysis.get("region_hint") or "")
+    if not location_query or not region_hint:
+        return False
+    analyzed_location = ("%s %s" % (location_query, analysis_region)).casefold()
+    if region_hint.casefold() not in analyzed_location:
+        return False
+
+    if location_kind == "street_address":
+        query_numbers = set(re.findall(r"\d+", location_query))
+        title_numbers = set(re.findall(r"\d+", title))
+        return bool(query_numbers and query_numbers <= title_numbers)
+
+    ignored_tokens = {
+        "canada",
+        "ontario",
+        "on",
+        "british",
+        "columbia",
+        "bc",
+        "alberta",
+        "ab",
+        "restaurant",
+        "store",
+        "location",
+    }
+    ignored_tokens.update(re.findall(r"[a-z0-9가-힣]+", region_hint.casefold()))
+    query_tokens = {
+        token
+        for token in re.findall(r"[a-z0-9가-힣]+", location_query.casefold())
+        if len(token) >= 2 and token not in ignored_tokens
+    }
+    title_tokens = set(re.findall(r"[a-z0-9가-힣]+", title.casefold()))
+    return bool(query_tokens & title_tokens)
+
+
 def _parse_ourvancouver_listing_articles(html: str) -> List[Dict[str, Any]]:
     matches = list(re.finditer(r"\bdataid\s*:\s*(\d+)", html))
     articles: List[Dict[str, Any]] = []
@@ -373,6 +586,7 @@ def get_adapter_registry() -> Dict[str, CrawlerAdapter]:
     adapters = [
         JPCanadaAdapter(),
         OurVancouverAdapter(),
+        CasmoAdapter(),
         JinzaiCanadaAdapter(),
         VanchosunAdapter(),
         SinojobsAdapter(),

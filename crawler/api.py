@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_POSTS_PER_REGION = 3
 DEFAULT_OURVANCOUVER_MAX_POSTS_PER_REGION = 100
+DEFAULT_CASMO_MAX_POSTS_PER_REGION = 25
 DEFAULT_JOB_RETENTION_DAYS = 14
 MAX_REMOVAL_CANDIDATES_PER_REGION = 10
 ADAPTERS = get_adapter_registry()
@@ -355,6 +356,16 @@ def _scheduled_source_limit(source_key: str) -> int:
                 os.getenv(
                     "OURVANCOUVER_MAX_POSTS_PER_REGION",
                     str(DEFAULT_OURVANCOUVER_MAX_POSTS_PER_REGION),
+                )
+            ),
+        )
+    if source_key == "casmo":
+        return max(
+            1,
+            int(
+                os.getenv(
+                    "CASMO_MAX_POSTS_PER_REGION",
+                    str(DEFAULT_CASMO_MAX_POSTS_PER_REGION),
                 )
             ),
         )

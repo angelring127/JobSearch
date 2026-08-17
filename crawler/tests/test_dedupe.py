@@ -10,7 +10,16 @@ from db_direct import (
 )
 
 
-def job(job_id, title, *, source_count=1, role_category="restaurant", lat=49.28, lng=-123.12):
+def job(
+    job_id,
+    title,
+    *,
+    source_count=1,
+    role_category="restaurant",
+    lat=49.28,
+    lng=-123.12,
+    source_key=None,
+):
     return {
         "id": job_id,
         "title": title,
@@ -22,6 +31,7 @@ def job(job_id, title, *, source_count=1, role_category="restaurant", lat=49.28,
         "category": role_category,
         "source_count": source_count,
         "title_translations": {},
+        "source_key": source_key,
     }
 
 
@@ -40,6 +50,47 @@ class DuplicateScoringTests(unittest.TestCase):
         )
         self.assertGreaterEqual(score, AUTO_MERGE_THRESHOLD)
         self.assertGreaterEqual(reason["title_token_count"], 2)
+
+    def test_casmo_and_ourvancouver_substantive_overlap_auto_merges(self):
+        score, reason = _duplicate_score(
+            job(
+                1,
+                "Hay Sushi North York 서버 구인",
+                lat=43.7690,
+                lng=-79.4120,
+                source_key="casmo",
+            ),
+            job(
+                2,
+                "Hay Sushi North York 서버 모집",
+                lat=43.7690,
+                lng=-79.4120,
+                source_key="ourvancouver",
+            ),
+        )
+
+        self.assertGreaterEqual(score, AUTO_MERGE_THRESHOLD)
+        self.assertGreaterEqual(reason["title_token_count"], 2)
+
+    def test_casmo_and_ourvancouver_different_roles_do_not_merge(self):
+        score, _ = _duplicate_score(
+            job(
+                1,
+                "Hay Sushi North York 서버 구인",
+                lat=43.7690,
+                lng=-79.4120,
+                source_key="casmo",
+            ),
+            job(
+                2,
+                "Hay Sushi North York 디시워셔 구인",
+                lat=43.7690,
+                lng=-79.4120,
+                source_key="ourvancouver",
+            ),
+        )
+
+        self.assertLess(score, AUTO_MERGE_THRESHOLD)
 
     def test_generic_one_token_title_never_auto_merges(self):
         score, _ = _duplicate_score(job(1, "서버 구인"), job(2, "서버 모집"))

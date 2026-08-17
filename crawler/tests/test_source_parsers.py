@@ -1,5 +1,5 @@
 import unittest
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import Mock
 
 from adapters import SINOJOBS_REQUEST_INTERVAL, SinojobsAdapter, get_adapter_registry
@@ -10,6 +10,7 @@ from source_parsers import (
     extract_sinojobs_ids,
     extract_vanchosun_ids,
     parse_jinzaicanada_job,
+    parse_casmo_listing_job,
     parse_ourvancouver_job,
     parse_sinojobs_job,
     parse_vanchosun_job,
@@ -20,8 +21,35 @@ class SourceParserTests(unittest.TestCase):
     def test_registry_contains_all_public_sources(self):
         self.assertEqual(
             set(get_adapter_registry()),
-            {"jpcanada", "ourvancouver", "jinzaicanada", "vanchosun", "sinojobs"},
+            {"jpcanada", "ourvancouver", "casmo", "jinzaicanada", "vanchosun", "sinojobs"},
         )
+
+    def test_casmo_public_listing_title_parses_region_address_and_time(self):
+        job = parse_casmo_listing_job(
+            {
+                "title": "5310 Yonge St, North York, ON 주방 직원 모집",
+                "articleElapsedTime": "2시간 전",
+            },
+            "https://m.cafe.daum.net/skc67/8cBB/637169",
+            637169,
+            now=datetime(2026, 8, 17, 12, 0, 0),
+        )
+
+        self.assertIsNotNone(job)
+        self.assertEqual(job["region_hint"], "North York")
+        self.assertEqual(job["location_kind"], "street_address")
+        self.assertIn("5310 Yonge St", job["location_text"])
+        self.assertEqual(job["posted_at"], "2026-08-17T10:00:00")
+
+    def test_casmo_rejects_title_without_explicit_canadian_municipality(self):
+        job = parse_casmo_listing_job(
+            {"title": "다운타운 스시집 서버 구인", "articleElapsedTime": "방금"},
+            "https://m.cafe.daum.net/skc67/8cBB/637160",
+            637160,
+            now=datetime(2026, 8, 17, 12, 0, 0),
+        )
+
+        self.assertIsNone(job)
 
     def test_ourvancouver_listing_and_detail(self):
         listing = "dataid: 405974, dataid: 405973, dataid: 405974,"
