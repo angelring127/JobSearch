@@ -58,7 +58,7 @@ Related plan:
 | M21. Compact Mobile Search | `DONE` | Mobile density work passed independent review and local/preview/production validation, then shipped to the production domain. |
 | M22. Mobile List Detail Visibility | `DONE` | Mobile list view now keeps the selected card context without displaying the job-detail panel; map and desktop details remain available. |
 | M23. Source Removal Sync | `DONE` | Bounded deterministic deletion checks passed full crawler validation and independent checkpoint revalidation. |
-| M24. Casmo Community Source | `VERIFY` | Public-listing-only adapter, strict title filtering, source registration, localized labels, and cross-source dedupe coverage are implemented; full validation and independent review are in progress. |
+| M24. Casmo Community Source | `DONE` | Public-listing-only ingestion, strict title/location privacy gates, localized labels, and conservative cross-source dedupe passed full validation and independent revalidation. |
 
 ## M1. Deployment Foundation
 
@@ -298,7 +298,7 @@ Goal: add the public Casmo Korean Canadian job listing without bypassing member-
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M24-01 | M | `VERIFY` | Add a bounded public-listing-only Casmo adapter, strict geography/privacy filters, localized labels, source registration, and cross-source duplicate coverage. | The 96-test crawler suite, Python compile, shell syntax, frontend lint/build, and diff checks pass. The idempotent local migration registers one enabled source; a bounded live public-API read made no detail requests, and the local Codex Bridge returned a grounded North York business classification. Independent checkpoint review remains. |
+| M24-01 | M | `DONE` | Add a bounded public-listing-only Casmo adapter, strict geography/privacy filters, localized labels, source registration, and cross-source duplicate coverage. | The final 97-test crawler suite, Python compile, shell syntax, frontend lint/build, and diff checks pass. The idempotent local migration registers one enabled source; a bounded live public-API read made no detail requests, and the local Codex Bridge returned a grounded North York business classification. Independent review found no Critical/High/Medium defects, and focused GTA-region remediation revalidation passed. |
 
 ## Progress Update Rules
 
