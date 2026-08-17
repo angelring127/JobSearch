@@ -84,6 +84,7 @@ export default function FilterBar({
             cityCountError={cityCountError}
             onCityChange={onCityChange}
             locale={locale}
+            showCityQuick={false}
           />
         </div>
 

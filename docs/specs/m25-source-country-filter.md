@@ -8,13 +8,12 @@ filter panel.
 
 ## Scope
 
-- Replace the always-visible location-search position with a source-country
+- Keep the major-city shortcut in its existing desktop and compact mobile
+  positions.
+- Replace only the free-form location-search position with a source-country
   select: all sources, Korean sources, Japanese sources, or Chinese sources.
-- On mobile, replace the compact header region select with the same synchronized
-  source-country select.
-- Move the major-city selector and free-form Canadian location search into the
-  detailed filter panel without removing autocomplete, counts, keyboard support,
-  or map navigation behavior.
+- Move the free-form Canadian location search into the detailed filter panel
+  without removing autocomplete, keyboard support, or map navigation behavior.
 - Map sources conservatively by adapter key:
   - Korea: `ourvancouver`, `casmo`, `vanchosun`
   - Japan: `jpcanada`, `jinzaicanada`
@@ -34,11 +33,12 @@ filter panel.
 
 ## Completion Criteria
 
-- The country select is visible where the location controls were previously
-  prominent, with a compact synchronized version in the mobile header.
-- Location controls are reachable inside detailed filters at 320px through
-  desktop widths and retain labels, autocomplete, error feedback, and 44px touch
-  targets.
+- The major-city shortcut remains in its prior desktop and compact mobile
+  positions, while the country select occupies the former free-form location
+  search position.
+- Free-form location search is reachable inside detailed filters at 320px
+  through desktop widths and retains labels, autocomplete, error feedback, and
+  44px touch targets.
 - Selecting Korea, Japan, or China refreshes map jobs and city counts and never
   relies only on a representative job's primary source.
 - Invalid `sourceCountry` API values return `400`.

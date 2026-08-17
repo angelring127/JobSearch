@@ -59,7 +59,7 @@ Related plan:
 | M22. Mobile List Detail Visibility | `DONE` | Mobile list view now keeps the selected card context without displaying the job-detail panel; map and desktop details remain available. |
 | M23. Source Removal Sync | `DONE` | Bounded deterministic deletion checks passed full crawler validation and independent checkpoint revalidation. |
 | M24. Casmo Community Source | `DONE` | Public-listing-only ingestion, strict title/location privacy gates, localized labels, and conservative cross-source dedupe passed full validation and independent revalidation. |
-| M25. Source Country Filter | `VERIFY` | Location search now lives in detailed filters; synchronized Korea/Japan/China source-country filtering is awaiting independent checkpoint review. |
+| M25. Source Country Filter | `VERIFY` | The major-city shortcut remains in place; only free-form location search moved into detailed filters, with source-country filtering in its former position. |
 
 ## M1. Deployment Foundation
 
@@ -308,7 +308,7 @@ keeping Canadian location navigation available through detailed filters.
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M25-01 | M | `VERIFY` | Replace prominent region controls with a synchronized source-country select, move city/address search into detailed filters, and filter public APIs across all raw sources of each representative job. | Frontend lint/build, live valid/invalid route checks, all-locale labels, filtered requests, empty state, 320-1440px responsiveness, landscape, reduced-motion, and zero-console-error browser checks pass; independent checkpoint review remains. |
+| M25-01 | M | `VERIFY` | Keep the major-city shortcut in its existing desktop/mobile positions, replace only the free-form location-search position with a source-country select, move free-form search into detailed filters, and filter public APIs across all raw sources of each representative job. | Corrected placement passes frontend lint, live filtered requests, 320-1440px and landscape overflow checks, and zero-console-error browser checks; production build and independent checkpoint review remain. |
 
 ## Progress Update Rules
 

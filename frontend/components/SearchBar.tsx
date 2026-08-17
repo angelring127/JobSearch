@@ -12,6 +12,8 @@ interface SearchBarProps {
   cityCountError: boolean;
   onCityChange: (value: string) => void;
   locale: Locale;
+  showCityQuick?: boolean;
+  showLocationSearch?: boolean;
 }
 
 interface GeocodeResult {
@@ -27,6 +29,8 @@ export default function SearchBar({
   cityCountError,
   onCityChange,
   locale,
+  showCityQuick = true,
+  showLocationSearch = true,
 }: SearchBarProps) {
   const inputId = useId();
   const listboxId = useId();
@@ -127,7 +131,7 @@ export default function SearchBar({
 
   return (
     <div className="location-search">
-      <div className="location-search__quick">
+      {showCityQuick && <div className="location-search__quick">
         <label className="field-label" htmlFor={citySelectId}>{t(locale, 'cityQuick')}</label>
         <select
           id={citySelectId}
@@ -148,69 +152,71 @@ export default function SearchBar({
             ? t(locale, 'cityCountError')
             : t(locale, 'cityHint')}
         </p>
-      </div>
+      </div>}
 
-      <label className="field-label" htmlFor={inputId}>{t(locale, 'locationSearch')}</label>
-      <div className="location-search__controls">
-        <div className="location-search__input-wrap">
-          <svg className="field-icon" aria-hidden="true" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="6" />
-            <path d="m16 16 4 4" />
-          </svg>
-          <input
-            id={inputId}
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                handleSearchClick();
-              }
-              if (event.key === 'Escape') {
-                setShowResults(false);
-              }
-            }}
-            onFocus={() => results.length > 0 && setShowResults(true)}
-            placeholder={t(locale, 'locationPlaceholder')}
-            role="combobox"
-            aria-autocomplete="list"
-            aria-controls={listboxId}
-            aria-expanded={showResults && results.length > 0}
-            aria-describedby={searchError ? `${inputId}-error` : undefined}
-            aria-invalid={searchError ? 'true' : 'false'}
-            autoComplete="off"
-          />
+      {showLocationSearch && <>
+        <label className="field-label" htmlFor={inputId}>{t(locale, 'locationSearch')}</label>
+        <div className="location-search__controls">
+          <div className="location-search__input-wrap">
+            <svg className="field-icon" aria-hidden="true" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="6" />
+              <path d="m16 16 4 4" />
+            </svg>
+            <input
+              id={inputId}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  handleSearchClick();
+                }
+                if (event.key === 'Escape') {
+                  setShowResults(false);
+                }
+              }}
+              onFocus={() => results.length > 0 && setShowResults(true)}
+              placeholder={t(locale, 'locationPlaceholder')}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-controls={listboxId}
+              aria-expanded={showResults && results.length > 0}
+              aria-describedby={searchError ? `${inputId}-error` : undefined}
+              aria-invalid={searchError ? 'true' : 'false'}
+              autoComplete="off"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={handleSearchClick}
+            disabled={isSearching || !query.trim()}
+            className="primary-button search-button"
+          >
+            {isSearching && <span className="spinner" aria-hidden="true" />}
+            <span>{isSearching ? t(locale, 'searching') : t(locale, 'search')}</span>
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={handleSearchClick}
-          disabled={isSearching || !query.trim()}
-          className="primary-button search-button"
-        >
-          {isSearching && <span className="spinner" aria-hidden="true" />}
-          <span>{isSearching ? t(locale, 'searching') : t(locale, 'search')}</span>
-        </button>
-      </div>
 
-      <p className="field-error" id={`${inputId}-error`} aria-live="polite">{searchError}</p>
+        <p className="field-error" id={`${inputId}-error`} aria-live="polite">{searchError}</p>
 
-      {showResults && results.length > 0 && (
-        <ul className="search-results" id={listboxId} role="listbox" aria-label={t(locale, 'locationResults')}>
-          {results.map((result) => (
-            <li key={`${result.lat}-${result.lon}`} role="presentation">
-              <button
-                type="button"
-                role="option"
-                aria-selected="false"
-                onClick={() => handleResultSelect(result)}
-              >
-                {result.display_name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+        {showResults && results.length > 0 && (
+          <ul className="search-results" id={listboxId} role="listbox" aria-label={t(locale, 'locationResults')}>
+            {results.map((result) => (
+              <li key={`${result.lat}-${result.lon}`} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected="false"
+                  onClick={() => handleResultSelect(result)}
+                >
+                  {result.display_name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </>}
     </div>
   );
 }
