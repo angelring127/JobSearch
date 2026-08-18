@@ -60,7 +60,7 @@ Related plan:
 | M23. Source Removal Sync | `DONE` | Bounded deterministic deletion checks passed full crawler validation and independent checkpoint revalidation. |
 | M24. Casmo Community Source | `DONE` | Public-listing-only ingestion, strict title/location privacy gates, localized labels, and conservative cross-source dedupe passed full validation and independent revalidation. |
 | M25. Source Country Filter | `DONE` | The major-city shortcut remains in place; only free-form location search moved into detailed filters, with source-country filtering in its former position. |
-| M26. Source Counts, Wage Parsing, and Header Layering | `VERIFY` | Source-country counts, exact title-derived decimal wages, and language-menu layering are implemented and awaiting validation. |
+| M26. Source Counts, Wage Parsing, and Header Layering | `DONE` | Source-country counts, exact title-derived decimal wages, and language-menu layering passed API, crawler, frontend, browser, and independent review checks. |
 
 ## M1. Deployment Foundation
 
@@ -318,7 +318,7 @@ titles, and keep global language controls operable while desktop details are ope
 
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
-| M26-01 | M | `VERIFY` | Show visible representative-job counts for every source-country option, parse Korean and multilingual hourly wages from every source title without rounding cents, and place the app bar/language menu above the non-modal desktop detail panel. | Pending focused parser/API checks, migration validation, frontend lint/build, responsive browser checks, and independent checkpoint review. |
+| M26-01 | M | `DONE` | Show visible representative-job counts for every source-country option, parse Korean and multilingual hourly wages from every source title without rounding cents, and place the app bar/language menu above the non-modal desktop detail panel. | The local numeric migration, 99 crawler tests, Python compilation, frontend lint/build, aggregate and controlled decimal API checks, 375px/1024px browser checks, zero browser-console errors, and independent review passed. The sole Low review note was remediated by normalizing merge-rollback wage values to `DOUBLE PRECISION`, followed by a clean frontend lint/build. |
 
 ## Progress Update Rules
 
