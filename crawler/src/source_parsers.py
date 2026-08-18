@@ -358,7 +358,7 @@ def parse_jinzaicanada_job(html: str, source_url: str, item_id: int) -> Optional
     region_hint = _canonical_region(location_text, "") or _canonical_region(
         fields.get("エリア", ""), "Vancouver"
     )
-    wage_text = "%s %s" % (fields.get("時給", ""), content)
+    wage_text = "%s %s %s" % (title, fields.get("時給", ""), content)
     wage_min, wage_max = parse_wage(wage_text)
     published_node = soup.select_one('meta[property="article:published_time"]')
     published_value = published_node.get("content", "") if published_node else ""
@@ -417,7 +417,7 @@ def parse_vanchosun_job(html: str, source_url: str, item_id: int) -> Optional[Di
     detail_text = _clean_text(detail.get_text(" ", strip=True))
     region_hint = _canonical_region("%s %s" % (fields.get("근무지역", ""), content), "Vancouver")
     location_text = _location_text(content, region_hint)
-    wage_min, wage_max = parse_wage("%s %s" % (fields.get("희망임금", ""), content))
+    wage_min, wage_max = parse_wage("%s %s %s" % (title, fields.get("희망임금", ""), content))
 
     return {
         "msgid": item_id,
@@ -493,7 +493,7 @@ def parse_sinojobs_job(
     description_html = html_lib.unescape(str(posting.get("description") or ""))
     description = _clean_text(BeautifulSoup(description_html, "lxml").get_text(" ", strip=True))
     industry = _clean_text(html_lib.unescape(str(posting.get("industry") or "")))
-    wage_min, wage_max = parse_wage(description)
+    wage_min, wage_max = parse_wage("%s %s" % (title, description))
     posted_at = _parse_iso_datetime(str(posting.get("datePosted") or ""))
 
     canonical_node = soup.select_one('link[rel="canonical"][href]')

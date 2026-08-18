@@ -60,6 +60,7 @@ Related plan:
 | M23. Source Removal Sync | `DONE` | Bounded deterministic deletion checks passed full crawler validation and independent checkpoint revalidation. |
 | M24. Casmo Community Source | `DONE` | Public-listing-only ingestion, strict title/location privacy gates, localized labels, and conservative cross-source dedupe passed full validation and independent revalidation. |
 | M25. Source Country Filter | `DONE` | The major-city shortcut remains in place; only free-form location search moved into detailed filters, with source-country filtering in its former position. |
+| M26. Source Counts, Wage Parsing, and Header Layering | `VERIFY` | Source-country counts, exact title-derived decimal wages, and language-menu layering are implemented and awaiting validation. |
 
 ## M1. Deployment Foundation
 
@@ -309,6 +310,15 @@ keeping Canadian location navigation available through detailed filters.
 | ID | Size | Status | Task | Verification |
 | --- | --- | --- | --- | --- |
 | M25-01 | M | `DONE` | Keep the major-city shortcut in its existing desktop/mobile positions, replace only the free-form location-search position with a source-country select, move free-form search into detailed filters, and filter public APIs across all raw sources of each representative job. | Frontend lint/build, valid/invalid route checks, filtered requests, all-locale labels, 320-1440px and landscape overflow checks, and zero-console-error browser checks pass. The independent review confirmed placement, source mapping, parameterized all-source matching, and accessibility. Its narrow-screen autocomplete concern was reproduced at 320px: the panel scroll area exposed and selected the last result successfully before switching to the map. |
+
+## M26. Source Counts, Title Wage Parsing, and Header Layering
+
+Goal: make source-country availability visible, retain exact hourly wages found in
+titles, and keep global language controls operable while desktop details are open.
+
+| ID | Size | Status | Task | Verification |
+| --- | --- | --- | --- | --- |
+| M26-01 | M | `VERIFY` | Show visible representative-job counts for every source-country option, parse Korean and multilingual hourly wages from every source title without rounding cents, and place the app bar/language menu above the non-modal desktop detail panel. | Pending focused parser/API checks, migration validation, frontend lint/build, responsive browser checks, and independent checkpoint review. |
 
 ## Progress Update Rules
 

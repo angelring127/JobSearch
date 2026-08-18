@@ -42,8 +42,8 @@ export default function FilterBar({
 
   useEffect(() => {
     onFilterChange({
-      wageMin: wageMin ? parseInt(wageMin, 10) : undefined,
-      wageMax: wageMax ? parseInt(wageMax, 10) : undefined,
+      wageMin: wageMin ? parseFloat(wageMin) : undefined,
+      wageMax: wageMax ? parseFloat(wageMax) : undefined,
       category: category || undefined,
       radius: radius ? parseFloat(radius) : undefined,
     });
@@ -110,6 +110,7 @@ export default function FilterBar({
                 onChange={(event) => setWageMin(event.target.value)}
                 placeholder={t(locale, 'minimum')}
                 min="0"
+                step="0.01"
               />
             </label>
             <span aria-hidden="true">—</span>
@@ -121,6 +122,7 @@ export default function FilterBar({
                 onChange={(event) => setWageMax(event.target.value)}
                 placeholder={t(locale, 'maximum')}
                 min="0"
+                step="0.01"
               />
             </label>
           </div>

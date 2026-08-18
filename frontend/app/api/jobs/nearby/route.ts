@@ -46,8 +46,8 @@ export async function GET(request: Request) {
   const lat = numberParam(searchParams, 'lat');
   const lng = numberParam(searchParams, 'lng');
   const radius = numberParam(searchParams, 'radius');
-  const wageMin = intParam(searchParams, 'wageMin');
-  const wageMax = intParam(searchParams, 'wageMax');
+  const wageMin = numberParam(searchParams, 'wageMin');
+  const wageMax = numberParam(searchParams, 'wageMax');
   const limit = intParam(searchParams, 'limit', 100);
   const category = searchParams.get('category');
   const rawSourceCountry = searchParams.get('sourceCountry');
@@ -136,8 +136,8 @@ export async function GET(request: Request) {
           COALESCE(js.msgid, 0)::INTEGER AS msgid,
           j.title,
           j.title_translations,
-          j.wage_min,
-          j.wage_max,
+          j.wage_min::DOUBLE PRECISION AS wage_min,
+          j.wage_max::DOUBLE PRECISION AS wage_max,
           COALESCE(ST_Y(j.geom::geometry), j.lat) AS lat,
           COALESCE(ST_X(j.geom::geometry), j.lng) AS lng,
           COALESCE(js.source_url, '') AS source_url,

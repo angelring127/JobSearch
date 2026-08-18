@@ -170,12 +170,12 @@ export async function getAdminDashboardData() {
         dc.created_at,
         js.title AS source_title,
         js.region_hint AS source_region,
-        js.wage_min AS source_wage_min,
-        js.wage_max AS source_wage_max,
+        js.wage_min::DOUBLE PRECISION AS source_wage_min,
+        js.wage_max::DOUBLE PRECISION AS source_wage_max,
         j.title AS candidate_title,
         j.region_hint AS candidate_region,
-        j.wage_min AS candidate_wage_min,
-        j.wage_max AS candidate_wage_max
+        j.wage_min::DOUBLE PRECISION AS candidate_wage_min,
+        j.wage_max::DOUBLE PRECISION AS candidate_wage_max
       FROM duplicate_candidates dc
       JOIN job_sources js ON js.id = dc.source_job_id
       JOIN jobs j ON j.id = dc.candidate_job_id

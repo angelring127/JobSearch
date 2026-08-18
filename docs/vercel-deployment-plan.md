@@ -172,6 +172,7 @@ database/migrations/010_crawl_seen_items.sql
 database/migrations/20260804075445_jobmap_data_api_lockdown.sql
 database/migrations/20260804075725_jobmap_revoke_public_schema_access.sql
 database/migrations/20260804075814_jobmap_foreign_key_indexes.sql
+database/migrations/20260818000000_preserve_decimal_wages.sql
 ```
 
 Required extension:

@@ -39,7 +39,7 @@ def parse_wage(text: str) -> tuple:
 
     candidate_patterns = [
         r'(?:\$|ca(?:d)?\s*\$?)\s*(\d{1,3}(?:\.\d{1,2})?)\s*(?:[-~〜–]\s*(?:\$|ca(?:d)?\s*\$?)?\s*(\d{1,3}(?:\.\d{1,2})?))?',
-        r'(?:時給|hourly|wage|pay|給料|賃金|hour|hr|per\s+hour)\D{0,20}(\d{1,3}(?:\.\d{1,2})?)\s*(?:[-~〜–]\s*(\d{1,3}(?:\.\d{1,2})?))?',
+        r'(?:時給|시급|hourly|wage|pay|給料|賃金|hour|hr|per\s+hour)\D{0,20}(\d{1,3}(?:\.\d{1,2})?)\s*(?:[-~〜–]\s*(\d{1,3}(?:\.\d{1,2})?))?',
         r'(\d{1,3}(?:\.\d{1,2})?)\s*(?:/h|/hr|/hour|ドル\s*/?\s*時|円\s*/?\s*時)',
     ]
 
@@ -59,14 +59,14 @@ def parse_wage(text: str) -> tuple:
     return wage_min, wage_max
 
 
-def _valid_hourly_wage(value: Optional[str]) -> Optional[int]:
+def _valid_hourly_wage(value: Optional[str]) -> Optional[float]:
     if not value:
         return None
 
     parsed = float(value)
     if parsed < 10 or parsed > 100:
         return None
-    return int(round(parsed))
+    return round(parsed, 2)
 
 
 def parse_category(title: str, description: str = "") -> Optional[str]:

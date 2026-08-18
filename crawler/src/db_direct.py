@@ -949,15 +949,17 @@ def _location_similarity(source: Dict[str, Any], candidate: Dict[str, Any]) -> f
 
 
 def _wage_similarity(
-    left_min: Optional[int],
-    left_max: Optional[int],
-    right_min: Optional[int],
-    right_max: Optional[int],
+    left_min: Optional[float],
+    left_max: Optional[float],
+    right_min: Optional[float],
+    right_max: Optional[float],
 ) -> float:
     if not left_min or not right_min:
         return 0.5
-    left_high = left_max or left_min
-    right_high = right_max or right_min
+    left_min = float(left_min)
+    right_min = float(right_min)
+    left_high = float(left_max or left_min)
+    right_high = float(right_max or right_min)
     overlaps = max(left_min, right_min) <= min(left_high, right_high)
     if overlaps:
         return 1.0

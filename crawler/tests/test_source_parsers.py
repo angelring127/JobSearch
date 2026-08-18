@@ -3,7 +3,7 @@ from datetime import date, datetime
 from unittest.mock import Mock
 
 from adapters import SINOJOBS_REQUEST_INTERVAL, SinojobsAdapter, get_adapter_registry
-from crawler import parse_category
+from crawler import parse_category, parse_wage
 from source_parsers import (
     extract_jinzaicanada_ids,
     extract_ourvancouver_ids,
@@ -18,6 +18,14 @@ from source_parsers import (
 
 
 class SourceParserTests(unittest.TestCase):
+    def test_korean_decimal_hourly_wage_in_title_is_preserved(self):
+        title = (
+            "[풀/파트타이머] 한국어 구사자 구인합니다 | 월 최대 800불 보너스 | "
+            "시급 24.75불 | 24시간 사내 헬스장 무료 이용"
+        )
+
+        self.assertEqual(parse_wage(title), (24.75, 24.75))
+
     def test_registry_contains_all_public_sources(self):
         self.assertEqual(
             set(get_adapter_registry()),
@@ -190,6 +198,24 @@ class SourceParserTests(unittest.TestCase):
         self.assertEqual(job["category"], "restaurant")
         self.assertEqual(job["posted_at"], "2026-08-02T00:00:00")
         self.assertEqual(job["location_kind"], "street_address")
+
+    def test_vanchosun_uses_title_when_wage_field_is_missing(self):
+        detail = """
+        <div id="cf_middle">
+          <font><b>[풀/파트타이머] 한국어 구사자 구인합니다 | 월 최대 800불 보너스 | 시급 24.75불</b></font>
+          <div>등록일 : 2026-08-17</div>
+          <table><tr>
+            <td class="board_section_frame1">근무지역</td><td class="board_section_frame2">밴쿠버</td>
+          </tr></table>
+          <div id="div_overflow">Vancouver, BC 고객 서비스 직원을 모집합니다.</div>
+        </div>
+        """
+
+        job = parse_vanchosun_job(detail, "https://example.test/?bdId=89123", 89123)
+
+        self.assertIsNotNone(job)
+        self.assertEqual(job["wage_min"], 24.75)
+        self.assertEqual(job["wage_max"], 24.75)
 
     def test_vanchosun_rejects_disguised_resume_service_ad(self):
         detail = """

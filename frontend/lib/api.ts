@@ -62,6 +62,19 @@ export interface NearbyParams {
 }
 
 export type CityJobCounts = Record<string, number>;
+export type SourceCountryJobCounts = Record<SourceCountry | 'all', number>;
+
+export async function getSourceCountryJobCounts(
+  signal?: AbortSignal
+): Promise<ApiResponse<SourceCountryJobCounts>> {
+  const response = await fetch('/api/jobs/source-country-counts', { signal });
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.statusText}`);
+  }
+
+  return response.json();
+}
 
 export async function getCityJobCounts(
   sourceCountry?: SourceCountry,

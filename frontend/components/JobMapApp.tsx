@@ -9,7 +9,13 @@ import LanguageSelector from '@/components/LanguageSelector';
 import Map from '@/components/Map';
 import SearchBar from '@/components/SearchBar';
 import SourceCountrySelect from '@/components/SourceCountrySelect';
-import { getCityJobCounts, JobSource, type CityJobCounts } from '@/lib/api';
+import {
+  getCityJobCounts,
+  getSourceCountryJobCounts,
+  JobSource,
+  type CityJobCounts,
+  type SourceCountryJobCounts,
+} from '@/lib/api';
 import { CITY_PRESETS } from '@/lib/city-presets';
 import {
   formatNumber,
@@ -53,6 +59,8 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
   const [selectedCity, setSelectedCity] = useState(VANCOUVER_PRESET.value);
   const [cityCounts, setCityCounts] = useState<CityJobCounts | null>(null);
   const [cityCountError, setCityCountError] = useState(false);
+  const [sourceCountryCounts, setSourceCountryCounts] = useState<SourceCountryJobCounts | null>(null);
+  const [sourceCountryCountError, setSourceCountryCountError] = useState(false);
   const [locale, setLocale] = useState<Locale>(initialLocale);
 
   useEffect(() => {
@@ -91,6 +99,26 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
 
     return () => controller.abort();
   }, [filters.sourceCountry]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    getSourceCountryJobCounts(controller.signal)
+      .then((response) => {
+        if (!response.success || !response.data) {
+          throw new Error(response.error?.message ?? 'Source-country count request failed');
+        }
+        setSourceCountryCounts(response.data);
+        setSourceCountryCountError(false);
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        console.error('Source-country count error:', error);
+        setSourceCountryCountError(true);
+      });
+
+    return () => controller.abort();
+  }, []);
 
   const handleJobsUpdate = useCallback((newJobs: JobSource[]) => {
     setJobs(newJobs);
@@ -200,6 +228,8 @@ export default function JobMapApp({ initialLocale }: JobMapAppProps) {
               value={filters.sourceCountry}
               onChange={handleSourceCountryChange}
               locale={locale}
+              counts={sourceCountryCounts}
+              countError={sourceCountryCountError}
             />
           </div>
 
